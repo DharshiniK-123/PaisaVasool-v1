@@ -1,0 +1,8 @@
+pydantic_settings
+sqlalchemy
+psycopg
+fastapi
+passlib[argon2-cffi]
+jose
+uuid7
+logger

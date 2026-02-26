@@ -1,0 +1,10 @@
+.test-class {
+  background-color: blue;
+  color: white;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+body {
+  font-family: Arial, sans-serif;
+}
