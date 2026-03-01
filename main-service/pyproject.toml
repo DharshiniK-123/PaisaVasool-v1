@@ -1,0 +1,19 @@
+[project]
+name = "paisa-vasool-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosmtplib>=5.1.0",
+    "fastapi>=0.133.1",
+    "jose>=1.0.0",
+    "logger>=1.4",
+    "passlib[argon2-cffi]>=1.7.4",
+    "psycopg>=3.3.3",
+    "pydantic-settings>=2.13.1",
+    "redis>=7.2.1",
+    "sqlalchemy>=2.0.47",
+    "uuid7>=0.1.0",
+    "uvicorn>=0.41.0",
+]

@@ -2,23 +2,17 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import env from '../config/env';
 import type { AppStore } from '../app/store';
 
-// ─── Lazy store injection ─────────────────────────────────────────────────────
-// We can't import `store` directly here — it would create a circular dependency:
-//   store → rootReducer → authSlice → axios → store
-// Instead, we expose an `injectStore` function called from main.tsx AFTER the
-// store is created. All interceptors access `_store` at call-time, not import-time.
 let _store: AppStore;
 export const injectStore = (store: AppStore) => { _store = store; };
 
 const axiosInstance = axios.create({
   baseURL: env.API_BASE_URL,
-  withCredentials: true, // send cookies automatically
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// ─── Request Interceptor ───────────────────────────────────────────────────────
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = _store?.getState().auth.accessToken;
@@ -30,7 +24,6 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ─── Response Interceptor ─────────────────────────────────────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
 
@@ -63,10 +56,9 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await axiosInstance.post<{ access_token: string }>('/users/refresh');
+        const res = await axiosInstance.post<{ access_token: string }>('/api/v1/users/refresh');
         const newToken = res.data.access_token;
 
-        // Import actions here — safe because _store is already initialised by now
         const { setAccessToken } = await import('../features/auth/slices/authSlice');
         _store.dispatch(setAccessToken(newToken));
 

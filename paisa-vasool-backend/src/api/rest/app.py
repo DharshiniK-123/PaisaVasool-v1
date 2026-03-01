@@ -1,13 +1,11 @@
 from fastapi import FastAPI
-from src.api.middleware.authorizationMiddleware import AuthorizationMiddleware
-from src.api.middleware.logging import logging_middleware
+from src.data.clients.postgres_client import init_db
+from src.api.rest.routes import user_routes
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from src.api.middleware.cors import setup_cors
+app = FastAPI(title="Auth Service")
 
+app.include_router(user_routes.router, prefix="/api/v1/users")
 
-app=FastAPI()
-
-app.add_middleware(BaseHTTPMiddleware, dispatch = logging_middleware)
-app.add_middleware(AuthorizationMiddleware)
-setup_cors(app)
+@app.on_event("startup")
+async def on_startup():
+    await init_db()

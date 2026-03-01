@@ -3,19 +3,18 @@ import { useSelector } from 'react-redux';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState, AppDispatch } from '../../app/store';
-import { logoutUser } from '../../features/auth/slices/authSlice';
-import { useTokenRefresh } from '../../hooks/useTokenRefresh';
+import { logout } from '../../features/auth/slices/authSlice';
 
 const Dashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
 
-  useTokenRefresh();
+
 
   const handleLogout = async () => {
     try {
-      await dispatch(logoutUser());
+      await dispatch(logout());
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -34,7 +33,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
+                Welcome, {user?.first_name}
               </span>
               <button
                 onClick={handleLogout}

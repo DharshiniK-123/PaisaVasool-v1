@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:15
+    container_name: paisa-vasool
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: paisa-vasool
+      POSTGRES_DB: paisa-vasool-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./paisa-vasool-backend
+    container_name: paisa-vasool-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DB_USER: postgres
+      DB_PASSWORD: paisa-vasool
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: paisa-vasool-db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./paisa-vasool-frontend
+    container_name: paisa-vasool-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:

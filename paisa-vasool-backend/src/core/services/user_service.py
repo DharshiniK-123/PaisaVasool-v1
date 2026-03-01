@@ -53,15 +53,12 @@ async def insert_refresh_token(db : AsyncSession,jti : str):
 
 
 async def revoke_refresh_token(jti: str, db):
-    
     jti_uuid = to_uuid(jti)
-
     refresh_token = await get_instance_by_any(
         model=RefreshToken,
         db=db,
         data={"token_id": jti_uuid}
     )
-
     if not refresh_token:
         return False
 

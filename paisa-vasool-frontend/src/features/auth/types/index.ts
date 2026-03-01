@@ -7,7 +7,7 @@ export interface RegisterPayload {
   first_name: string;
   last_name: string;
   email: string;
-  phone_no: string;  // Fixed: changed from "phone_no" to "phone_no_no"
+  phone_no: string;  
   password: string;
 }
 

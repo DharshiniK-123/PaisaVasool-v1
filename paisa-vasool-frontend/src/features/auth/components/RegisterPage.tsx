@@ -64,7 +64,6 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!isValid) return;
     
-    // Debug: Log form data before submission
     console.log('Submitting form data:', form);
     console.log('Form validation:', { isValid, errors });
     
@@ -75,7 +74,6 @@ export default function RegisterPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.625rem' }}>
 
-      {/* ── Header ── */}
       <div className="animate-slide-up stagger-1">
         <p style={{
           fontSize: '0.68rem', fontWeight: 500, textTransform: 'uppercase',
@@ -91,7 +89,6 @@ export default function RegisterPage() {
         </h2>
       </div>
 
-      {/* ── Banners ── */}
       {error && (
         <div className="banner banner-error animate-slide-up">
           <span className="banner-icon">⚠</span>
@@ -105,10 +102,8 @@ export default function RegisterPage() {
         </div>
       )}
 
-      {/* ── Form ── */}
       <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
 
-        {/* First Name */}
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-first-name" className="field-label">First Name</label>
           <div className={`field-wrap ${fieldState('first_name')}`}>
@@ -130,7 +125,6 @@ export default function RegisterPage() {
           {errors.first_name && <span className="field-error-msg"><span>⚠</span> {errors.first_name}</span>}
         </div>
 
-        {/* Last Name */}
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-last-name" className="field-label">Last Name</label>
           <div className={`field-wrap ${fieldState('last_name')}`}>
@@ -152,7 +146,6 @@ export default function RegisterPage() {
           {errors.last_name && <span className="field-error-msg"><span>⚠</span> {errors.last_name}</span>}
         </div>
 
-        {/* Email */}
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-email" className="field-label">Email</label>
           <div className={`field-wrap ${fieldState('email')}`}>
@@ -174,7 +167,6 @@ export default function RegisterPage() {
           {errors.email && <span className="field-error-msg"><span>⚠</span> {errors.email}</span>}
         </div>
 
-        {/* Mobile Number */}
         <div className="animate-slide-up stagger-3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-phone" className="field-label">Mobile Number</label>
           <div className={`field-wrap ${fieldState('phone_no')}`}>
@@ -197,7 +189,6 @@ export default function RegisterPage() {
           {errors.phone_no && <span className="field-error-msg"><span>⚠</span> {errors.phone_no}</span>}
         </div>
 
-        {/* Password */}
         <div className="animate-slide-up stagger-4" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-password" className="field-label">Password</label>
           <div className={`field-wrap ${fieldState('password')}`}>
@@ -223,7 +214,6 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          {/* Strength bar */}
           {form.password && (
             <div style={{ paddingTop: '0.125rem' }}>
               <div className="strength-track">
@@ -238,7 +228,6 @@ export default function RegisterPage() {
           {errors.password && <span className="field-error-msg"><span>⚠</span> {errors.password}</span>}
         </div>
 
-        {/* Submit */}
         <div className="animate-slide-up stagger-5" style={{ paddingTop: '0.5rem' }}>
           <button type="submit" className="btn-primary" disabled={isLoading || !isValid}>
             {isLoading ? (
@@ -251,12 +240,10 @@ export default function RegisterPage() {
         </div>
       </form>
 
-      {/* ── Divider ── */}
       <div className="auth-divider animate-slide-up stagger-5">
         <span>or</span>
       </div>
 
-      {/* ── Login link ── */}
       <p className="animate-slide-up stagger-6" style={{
         textAlign: 'center', fontSize: '0.825rem', color: 'var(--color-muted)',
       }}>

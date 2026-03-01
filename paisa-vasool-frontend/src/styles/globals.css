@@ -6,49 +6,41 @@
 
 @layer base {
   :root {
-    /* ── Core palette ── */
     --color-bg:        #07090a;
     --color-surface:   #0d1110;
     --color-surface-2: #121917;
     --color-surface-3: #182019;
 
-    /* ── Borders ── */
     --color-border:       rgba(255, 255, 255, 0.06);
     --color-border-hover: rgba(255, 255, 255, 0.11);
     --color-border-focus: rgba(52, 211, 153, 0.4);
 
-    /* ── Accent ── */
     --color-accent:      #34d399;
     --color-accent-dim:  #2bb882;
     --color-accent-soft: rgba(52, 211, 153, 0.09);
     --color-accent-glow: rgba(52, 211, 153, 0.22);
     --color-accent-glow-lg: rgba(52, 211, 153, 0.12);
 
-    /* ── Text ── */
     --color-text:  #edf2f0;
     --color-muted: #7c9a86;
     --color-faint: #3e5944;
 
-    /* ── Feedback ── */
     --color-error:      #f87171;
     --color-error-bg:   rgba(248, 113, 113, 0.07);
     --color-error-border: rgba(248, 113, 113, 0.3);
     --color-success:    #34d399;
     --color-success-bg: rgba(52, 211, 153, 0.07);
 
-    /* ── Shadows ── */
     --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
     --shadow-md:  0 4px 16px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
     --shadow-lg:  0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
     --shadow-accent: 0 0 0 3px rgba(52,211,153,0.12), 0 8px 28px rgba(52,211,153,0.12);
 
-    /* ── Radius ── */
     --radius-sm:  8px;
     --radius-md:  12px;
     --radius-lg:  16px;
     --radius-xl:  20px;
 
-    /* ── Timing ── */
     --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out:    cubic-bezier(0.4, 0, 0.2, 1);
     --ease-bounce:    cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -57,7 +49,6 @@
     --duration-slow:  380ms;
   }
 
-  /* ── Reset & base ── */
   *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -81,13 +72,11 @@
     overflow-x: hidden;
   }
 
-  /* ── Selection ── */
   ::selection {
     background: rgba(52, 211, 153, 0.25);
     color: var(--color-text);
   }
 
-  /* ── Scrollbar ── */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
@@ -98,7 +87,6 @@
     background: rgba(255,255,255,0.14);
   }
 
-  /* ── Autofill override ── */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
@@ -108,7 +96,6 @@
     transition: background-color 9999s ease 0s;
   }
 
-  /* ── Focus ring ── */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
@@ -116,12 +103,8 @@
   }
 }
 
-/* ════════════════════════════════════════
-   COMPONENTS
-════════════════════════════════════════ */
 @layer components {
 
-  /* ── Primary button ── */
   .btn-primary {
     position: relative;
     width: 100%;
@@ -181,7 +164,6 @@
     transform: none;
   }
 
-  /* ── Secondary button ── */
   .btn-secondary {
     padding: 0.5rem 1.125rem;
     font-family: 'Outfit', sans-serif;
@@ -210,7 +192,6 @@
 
   .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── Form field wrapper ── */
   .field-wrap {
     position: relative;
     display: flex;
@@ -250,7 +231,6 @@
     box-shadow: 0 0 0 3px rgba(248,113,113,0.1);
   }
 
-  /* ── Input base ── */
   .field-input {
     flex: 1;
     min-width: 0;
@@ -270,7 +250,6 @@
     font-weight: 300;
   }
 
-  /* ── Field label ── */
   .field-label {
     display: block;
     font-family: 'Outfit', sans-serif;
@@ -282,7 +261,6 @@
     margin-bottom: 0.45rem;
   }
 
-  /* ── Field error message ── */
   .field-error-msg {
     display: flex;
     align-items: center;
@@ -294,7 +272,6 @@
     animation: fadeSlideUp 0.2s var(--ease-out-expo) both;
   }
 
-  /* ── Phone prefix ── */
   .phone-prefix {
     padding: 0.9rem 0 0.9rem 1.05rem;
     font-size: 0.875rem;
@@ -308,7 +285,6 @@
     white-space: nowrap;
   }
 
-  /* ── Show/hide toggle ── */
   .toggle-btn {
     background: none;
     border: none;
@@ -327,7 +303,6 @@
 
   .toggle-btn:hover { color: var(--color-text); }
 
-  /* ── Valid checkmark ── */
   .field-check {
     padding-right: 0.75rem;
     font-size: 0.875rem;
@@ -336,7 +311,6 @@
     animation: popIn 0.25s var(--ease-bounce) both;
   }
 
-  /* ── Password strength ── */
   .strength-track {
     height: 3px;
     width: 100%;
@@ -358,7 +332,6 @@
     margin-top: 0.3rem;
   }
 
-  /* ── Divider ── */
   .auth-divider {
     display: flex;
     align-items: center;
@@ -380,7 +353,6 @@
     color: var(--color-faint);
   }
 
-  /* ── Error/success banner ── */
   .banner {
     display: flex;
     align-items: flex-start;
@@ -408,7 +380,6 @@
   .banner-error   p { color: #fca5a5; }
   .banner-success p { color: #6ee7b7; }
 
-  /* ── Stat card ── */
   .stat-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -426,7 +397,6 @@
     transform: translateY(-1px);
   }
 
-  /* ── Session badge ── */
   .session-badge {
     display: inline-flex;
     align-items: center;
@@ -441,7 +411,6 @@
     letter-spacing: 0.03em;
   }
 
-  /* ── Dashboard header ── */
   .dashboard-header {
     position: sticky;
     top: 0;
@@ -462,7 +431,6 @@
     .dashboard-header { padding: 0.875rem 1.75rem; }
   }
 
-  /* ── Auth left panel ── */
   .auth-layout-left {
     display: none;
     position: relative;
@@ -480,7 +448,6 @@
     .auth-layout-left { width: 50%; padding: 4rem; }
   }
 
-  /* ── Auth right panel ── */
   .auth-layout-right {
     width: 100%;
     display: flex;
@@ -500,7 +467,6 @@
     .auth-layout-right { width: 50%; }
   }
 
-  /* ── Form container ── */
   .form-container {
     width: 100%;
     max-width: 420px;
@@ -511,7 +477,6 @@
     .form-container { padding: 2.5rem 0; }
   }
 
-  /* ── Mobile logo ── */
   .mobile-logo {
     display: flex;
     align-items: center;
@@ -521,7 +486,6 @@
 
   @media (min-width: 1024px) { .mobile-logo { display: none; } }
 
-  /* ── User chip ── */
   .user-chip {
     display: none;
     align-items: center;
@@ -537,7 +501,6 @@
 
   @media (min-width: 640px) { .user-chip { display: flex; } }
 
-  /* ── User avatar ── */
   .user-avatar {
     width: 1.35rem;
     height: 1.35rem;
@@ -549,7 +512,6 @@
     flex-shrink: 0;
   }
 
-  /* ── Spinner ── */
   .spinner {
     width: 1rem;
     height: 1rem;
@@ -562,12 +524,8 @@
   }
 }
 
-/* ════════════════════════════════════════
-   UTILITIES
-════════════════════════════════════════ */
 @layer utilities {
 
-  /* Typography */
   .font-display {
     font-family: 'Syne', sans-serif;
   }
@@ -576,11 +534,9 @@
     font-family: 'Outfit', sans-serif;
   }
 
-  /* ── Colors ── */
   .text-accent  { color: var(--color-accent); }
   .text-muted   { color: var(--color-muted); }
 
-  /* ── Glow ── */
   .glow-accent {
     box-shadow:
       0 0 0 1px var(--color-border),
@@ -595,7 +551,6 @@
       0 20px 48px rgba(0,0,0,0.6);
   }
 
-  /* ── Noise overlay ── */
   .noise-overlay {
     position: relative;
   }
@@ -610,7 +565,6 @@
     opacity: 0.25;
   }
 
-  /* ── Gradient border ── */
   .gradient-border {
     position: relative;
     border: 1px solid transparent;
@@ -626,7 +580,6 @@
     z-index: -1;
   }
 
-  /* ── Grid pattern ── */
   .grid-pattern {
     background-image:
       linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
@@ -634,7 +587,6 @@
     background-size: 44px 44px;
   }
 
-  /* ── Glow orbs ── */
   .glow-orb {
     position: absolute;
     border-radius: 9999px;
@@ -643,7 +595,6 @@
     animation: pulseSlow 5s ease-in-out infinite;
   }
 
-  /* ── Animations ── */
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50%       { transform: translateY(-7px); }
@@ -683,7 +634,6 @@
   .animate-slide-up    { animation: slideUp 0.55s var(--ease-out-expo) both; }
   .animate-fade-in     { animation: fadeIn 0.4s ease both; }
 
-  /* ── Stagger helpers ── */
   .stagger-1 { animation-delay: 0.04s;  opacity: 0; }
   .stagger-2 { animation-delay: 0.09s;  opacity: 0; }
   .stagger-3 { animation-delay: 0.14s;  opacity: 0; }

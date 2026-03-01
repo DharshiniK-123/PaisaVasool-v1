@@ -40,8 +40,6 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.875rem' }}>
-
-      {/* ── Header ── */}
       <div className="animate-slide-up stagger-1">
         <p style={{
           fontSize: '0.68rem', fontWeight: 500, textTransform: 'uppercase',
@@ -57,7 +55,6 @@ export default function LoginPage() {
         </h2>
       </div>
 
-      {/* ── Error banner ── */}
       {error && (
         <div className="banner banner-error animate-slide-up">
           <span className="banner-icon">⚠</span>
@@ -65,10 +62,8 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* ── Form ── */}
       <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        {/* Email */}
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="login-email" className="field-label">Email</label>
           <div className={`field-wrap ${fieldState('email')}`}>
@@ -92,20 +87,8 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Password */}
         <div className="animate-slide-up stagger-3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label htmlFor="login-password" className="field-label">Password</label>
-            <button type="button" style={{
-              fontSize: '0.72rem', color: 'var(--color-accent)', background: 'none',
-              border: 'none', cursor: 'pointer', opacity: 0.85, transition: 'opacity 0.15s',
-            }}
-              onMouseOver={e => (e.currentTarget.style.opacity = '1')}
-              onMouseOut={e => (e.currentTarget.style.opacity = '0.85')}
-            >
-              Forgot password?
-            </button>
-          </div>
+          
           <div className={`field-wrap ${fieldState('password')}`}>
             <input
               id="login-password"
@@ -133,7 +116,6 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Submit */}
         <div className="animate-slide-up stagger-4" style={{ paddingTop: '0.375rem' }}>
           <button type="submit" className="btn-primary" disabled={isLoading || !isValid}>
             {isLoading ? (
@@ -146,12 +128,10 @@ export default function LoginPage() {
         </div>
       </form>
 
-      {/* ── Divider ── */}
       <div className="auth-divider animate-slide-up stagger-5">
         <span>or</span>
       </div>
 
-      {/* ── Register link ── */}
       <p className="animate-slide-up stagger-6" style={{
         textAlign: 'center', fontSize: '0.825rem', color: 'var(--color-muted)',
       }}>
