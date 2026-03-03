@@ -12,7 +12,6 @@ AsyncSessionLocal=async_sessionmaker(bind=engine,class_=AsyncSession,autoflush=F
 
 base=declarative_base()
 
-
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(base.metadata.create_all)

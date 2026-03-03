@@ -20,5 +20,10 @@ aiofiles
 python-multipart
 langgraph 
 langchain-groq
-langchain-core
 httpx>=0.27.2
+apscheduler
+
+langchain
+langchain-core
+langchain-community
+langchain-google-genai

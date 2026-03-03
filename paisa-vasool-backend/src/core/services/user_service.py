@@ -8,8 +8,6 @@ from src.data.repositories.generic_repository import commit_transaction, get_ins
 from src.data.models.postgres.user import User
 
 
-
-
 async def create_user(db : AsyncSession,user_data):
     
     hashed_password = get_password_hashed(user_data.password)

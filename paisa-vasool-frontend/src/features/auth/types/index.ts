@@ -12,8 +12,9 @@ export interface RegisterPayload {
 }
 
 export interface LoginResponse {
-  message: string;
-  access_token: string;
+  user_id: string;
+  email: string;
+  access_token:string;
 }
 
 export interface RegisterResponse {

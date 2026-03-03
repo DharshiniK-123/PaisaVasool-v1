@@ -4,7 +4,7 @@ services:
 
   db:
     image: postgres:15
-    container_name: paisa-vasool
+    container_name: paisa-vasool-db
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -15,10 +15,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  backend:
+  # ── Auth Service (:8001) ──────────────────────────────
+  auth-service:
     build:
       context: ./paisa-vasool-backend
-    container_name: paisa-vasool-backend
+    container_name: paisa-vasool-auth
     restart: always
     depends_on:
       - db
@@ -29,17 +30,57 @@ services:
       DB_PORT: 5432
       DB_NAME: paisa-vasool-db
     ports:
+      - "8001:8001"
+
+  # ── Payment Matching Service (:8002) ──────────────────
+  payment-service:
+    build:
+      context: ./payment_intake_matching_service
+    container_name: paisa-vasool-payment
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DB_USER: postgres
+      DB_PASSWORD: paisa-vasool
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: paisa-vasool-db
+    ports:
+      - "8002:8002"
+
+  # ── Main/Gateway Service (:8000) ──────────────────────
+  main-service:
+    build:
+      context: ./main-service
+    container_name: paisa-vasool-main
+    restart: always
+    depends_on:
+      - auth-service
+      - payment-service
+    environment:
+      DB_USER: postgres
+      DB_PASSWORD: paisa-vasool
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: paisa-vasool-db
+      AUTH_SERVICE_URL: http://auth-service:8001
+      MATCHING_SERVICE_URL: http://payment-service:8002
+    ports:
       - "8000:8000"
 
+  # ── Frontend + nginx (:80) ────────────────────────────
   frontend:
     build:
       context: ./paisa-vasool-frontend
     container_name: paisa-vasool-frontend
     restart: always
     depends_on:
-      - backend
+      - auth-service
+      - payment-service
+      - main-service
     ports:
-      - "5173:80"
+      - "80:80"
 
 volumes:
   postgres_data:

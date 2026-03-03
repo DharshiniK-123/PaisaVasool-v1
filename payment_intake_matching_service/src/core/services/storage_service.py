@@ -4,6 +4,7 @@ import aiofiles
 from fastapi import UploadFile
 
 UPLOAD_DIR = "uploads"
+BASE_URL = os.getenv("BASE_URL", "http://localhost")
 
 async def save_file_locally(file: UploadFile, document_type: str) -> tuple[str, str]:
     folder = os.path.join(UPLOAD_DIR, document_type)
@@ -16,4 +17,5 @@ async def save_file_locally(file: UploadFile, document_type: str) -> tuple[str, 
     async with aiofiles.open(storage_path, "wb") as f:
         content = await file.read()
         await f.write(content)
-    return storage_path, extension
+    file_url = f"{BASE_URL}/uploads/{document_type}/{unique_name}"
+    return storage_path, extension,file_url

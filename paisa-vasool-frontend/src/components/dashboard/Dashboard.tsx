@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import type { RootState, AppDispatch } from '../../app/store';
-import { logout } from '../../features/auth/slices/authSlice';
+import { logoutThunk } from '../../features/auth/slices/authSlice';
 
 const Dashboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await dispatch(logout());
+      await dispatch(logoutThunk());
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);

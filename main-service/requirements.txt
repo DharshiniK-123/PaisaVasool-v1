@@ -12,3 +12,4 @@ uvicorn[standard]
 python-json-logger
 pydantic[email]
 argon2-cffi>=23.1.0
+httpx

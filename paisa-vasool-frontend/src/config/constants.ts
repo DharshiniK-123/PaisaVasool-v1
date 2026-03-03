@@ -3,6 +3,11 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   DASHBOARD: '/dashboard',
+  UPLOAD:    '/upload',
+  MATCHING:  '/matching',
+  INVOICES:  '/invoices',
+  PAYMENTS:  '/payments',
+  REMINDERS: '/reminders',
 } as const;
 
 export const AUTH_COOKIE_KEYS = {

@@ -14,32 +14,34 @@ from src.data.repositories.generic_repository import (
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 @router.post("/upload")
 async def upload_document(
-    document_type: Literal["INVOICE", "PAYMENT"] = Query(..., description="Type of documents being uploaded"),
-    files: List[UploadFile] = File(..., description="One or more files to upload"),
+    document_type: Literal["INVOICE", "PAYMENT"] = Query(...),
+    file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
-    results = []
-    for file in files:
-        try:
-            result = await upload_and_process_document(file=file,document_type=document_type,db=db,)
-            results.append({"file_name": file.filename,"status":    "success",**result,})
-        except HTTPException as e:
-            results.append({"file_name": file.filename,"status":    "failed","detail":    e.detail,})
-    total   = len(results)
-    success = sum(1 for r in results if r["status"] == "success")
-    failed  = total - success
-    return {
-        "total":   total,
-        "success": success,
-        "failed":  failed,
-        "results": results,
-    }
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 10MB.")
+
+    # ✅ Reset file position so upload_and_process_document can read it again
+    await file.seek(0)
+
+    print(file, "...........", document_type)
+    try:
+        result = await upload_and_process_document(
+            file=file,
+            document_type=document_type,
+            db=db,
+        )
+        return {"file_name": file.filename, "status": "success", **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/")

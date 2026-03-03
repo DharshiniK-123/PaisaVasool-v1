@@ -8,9 +8,9 @@ class ReminderLog(base):
     id           = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     customer_id  = Column(Integer, ForeignKey("customers.id"), nullable=False)
     invoice_id   = Column(Integer, ForeignKey("invoice_data.id"), nullable=False)
-    severity     = Column(String(50), nullable=False)       # LOW/MEDIUM/HIGH/CRITICAL
+    severity     = Column(String(50), nullable=False)#LOW/MEDIUM/HIGH/CRITICAL
     subject      = Column(String(255), nullable=False)
-    body         = Column(Text, nullable=False)              # full email body
+    body         = Column(Text, nullable=False)             
     channel      = Column(String(50), nullable=False, default="EMAIL")
-    status       = Column(String(50), nullable=False)       # SENT / FAILED
+    status       = Column(String(50), nullable=False)#SENT/FAILED
     sent_at      = Column(DateTime(timezone=True), default=func.now())

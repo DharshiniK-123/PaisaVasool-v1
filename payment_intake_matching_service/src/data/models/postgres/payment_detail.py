@@ -8,8 +8,8 @@ class PaymentDetail(base):
     id                 = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     document_id        = Column(Integer, ForeignKey("documents.id"), nullable=False)
     customer_id        = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    invoice_no         = Column(String(100), nullable=False)  # reference from payment doc
+    invoice_no         = Column(String(100), nullable=False)  
     payment_amount     = Column(Numeric(12, 2), nullable=False)
     currency           = Column(String(10), nullable=False, default="INR")
     paid_date          = Column(Date, nullable=False)
-    payment_reference  = Column(String(100), nullable=True)   # Bank/UTR reference
+    payment_reference  = Column(String(100), nullable=True)

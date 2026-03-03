@@ -1,2 +1,0 @@
-invoice_number,invoice_date,due_date,total_amount,currency,customer_name,customer_email,gl_code
-INV-2024-00201,2024-01-15,2024-02-15,87500.00,INR,Deepak Verma,deepak.verma@techcorp.in,TECH-SERV-Q1

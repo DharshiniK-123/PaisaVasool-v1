@@ -9,22 +9,15 @@ from fastapi import Depends, HTTPException, Request
 from src.config.jwthandler import verify_access_token
 
 async def get_current_user(request: Request):
+    # ✅ Read from Bearer header
     auth_header = request.headers.get("Authorization")
-    if auth_header:
-        try:
-            scheme, token = auth_header.split(" ")
-        except ValueError:
-            raise HTTPException(status_code=401, detail="Invalid authorization format")
-        if scheme != "Bearer":
-            raise HTTPException(status_code=401, detail="Invalid auth scheme")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
     else:
-        # Fall back to cookie
-        token = request.cookies.get("access_token")
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing Authorization header or cookie")
+        raise HTTPException(status_code=401, detail="Access token missing")
 
     payload = verify_access_token(token)
-    if payload is None:
+    if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     return payload

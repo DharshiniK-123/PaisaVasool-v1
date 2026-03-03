@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DB_NAME: str
 
     GROQ_API_KEY:str
+    GOOGLE_API_KEY: str
 
     JWT_SECRET_KEY:str
     JWT_REFRESH_SECRET_KEY:str

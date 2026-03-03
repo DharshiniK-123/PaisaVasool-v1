@@ -7,6 +7,7 @@ export interface User {
 }
 
 export interface AuthState {
+  isVerifying?: boolean;
   user: User | null;
   accessToken: string | null;
   isAuthenticated: boolean;
