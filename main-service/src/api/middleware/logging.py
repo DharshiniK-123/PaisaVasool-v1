@@ -23,7 +23,6 @@ async def logging_middleware(request:Request,call_next):
 
 
 
-
 def setup_logging():
     logger=logging.getLogger()
     logger.setLevel(logging.INFO)

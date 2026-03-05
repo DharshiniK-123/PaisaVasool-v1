@@ -3,10 +3,7 @@ import { Outlet } from 'react-router-dom';
 export default function AuthLayout() {
   return (
     <div className="noise-overlay" style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}>
-
-      
       <aside className="auth-layout-left">
-
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
           background: `
@@ -14,30 +11,23 @@ export default function AuthLayout() {
             radial-gradient(ellipse 50% 45% at 85% 85%, rgba(52,211,153,0.03) 0%, transparent 60%)
           `,
         }} />
-
         <div className="grid-pattern absolute inset-0" style={{ opacity: 0.03 }} />
-
         <div className="glow-orb" style={{ width: 440, height: 440, background: 'var(--color-accent)', top: '-18%', left: '-16%', animationDelay: '0s' }} />
         <div className="glow-orb" style={{ width: 260, height: 260, background: '#6ee7b7', bottom: '6%', right: '-12%', animationDelay: '2s' }} />
         <div className="glow-orb" style={{ width: 180, height: 180, background: 'var(--color-accent)', top: '58%', left: '8%', animationDelay: '3.5s', opacity: 0.025 }} />
-
         <div style={{ position: 'absolute', top: 0, left: 0, width: 200, height: 200, background: 'radial-gradient(circle at 0% 0%, rgba(52,211,153,0.07), transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 220, height: 220, background: 'radial-gradient(circle at 100% 100%, rgba(52,211,153,0.045), transparent 70%)', pointerEvents: 'none' }} />
-
         <div style={{
           position: 'absolute', right: 0, top: '8%', bottom: '8%', width: 1,
           background: 'linear-gradient(to bottom, transparent, rgba(52,211,153,0.22) 35%, rgba(52,211,153,0.22) 65%, transparent)',
         }} />
-
         <div style={{
           position: 'relative', zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           textAlign: 'center', gap: '2.125rem',
           width: '100%', maxWidth: 308,
         }}>
-
           <div className="animate-float" style={{ position: 'relative', width: 82, height: 82 }}>
-          
             <div style={{
               position: 'absolute', inset: -7, borderRadius: 27,
               background: 'rgba(52,211,153,0.06)',
@@ -131,8 +121,6 @@ export default function AuthLayout() {
               </span>
             ))}
           </div>
-
-          
 
         </div>
       </aside>

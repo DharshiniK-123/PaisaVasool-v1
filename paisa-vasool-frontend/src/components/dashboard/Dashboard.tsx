@@ -10,8 +10,6 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
 
-
-
   const handleLogout = async () => {
     try {
       await dispatch(logoutThunk());

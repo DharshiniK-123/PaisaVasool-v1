@@ -7,7 +7,6 @@ export const authService = {
     console.log(res.data)
     return res.data;
   },
-
   login: async (payload: LoginPayload): Promise<LoginResponse> => {
   const res = await axiosInstance.post<LoginResponse>(
     '/api/v1/users/login',
@@ -15,11 +14,9 @@ export const authService = {
   );
   return res.data;
   },
-
   register: async (payload: { email: string; password: string }) => {
     await axiosInstance.post('/api/v1/users/register', payload);
   },
-
   logout: async () => {
     await axiosInstance.post('/api/v1/users/logout');
   },

@@ -15,7 +15,7 @@ def extract_from_pdf(storage_path: str) -> str:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"PDF extraction failed: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"PDF extraction failed")
 
 
 def extract_from_image(storage_path: str, file_type: str, file_url: str = None) -> dict:
@@ -38,7 +38,7 @@ def extract_from_image(storage_path: str, file_type: str, file_url: str = None) 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Image file not found: {storage_path}")
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Image extraction failed: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Image extraction failed")
     
     
 def extract_from_csv(storage_path: str) -> pd.DataFrame:
@@ -48,7 +48,7 @@ def extract_from_csv(storage_path: str) -> pd.DataFrame:
         df = df.dropna(how="all")
         return df
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"CSV extraction failed: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"CSV extraction failed")
 
 
 def extract_from_excel(storage_path: str) -> pd.DataFrame:
@@ -58,7 +58,7 @@ def extract_from_excel(storage_path: str) -> pd.DataFrame:
         df = df.dropna(how="all")
         return df
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Excel extraction failed: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Excel extraction failed")
 
 
 def extract_text(storage_path: str, file_type: str,file_url:str=None) -> dict:

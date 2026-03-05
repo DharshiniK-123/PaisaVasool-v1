@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useInvoices } from '../hooks/useInvoices';
 import type { Invoice, PaymentStatus } from '../types/Invoice';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
 const IconSearch = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -66,7 +64,8 @@ const IconCurrency = () => (
   </svg>
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return (
@@ -136,7 +135,8 @@ function PaymentProgress({ paid, total }: { paid?: number | null; total?: number
   );
 }
 
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
+
+
 
 function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const overdue = isOverdue(invoice.due_date, invoice.payment_status);
@@ -248,7 +248,6 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   );
 }
 
-// ─── Main Invoice Table ───────────────────────────────────────────────────────
 
 const ALL_STATUSES: PaymentStatus[] = ['PAID', 'UNPAID', 'PARTIAL', 'OVERPAID'];
 

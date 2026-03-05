@@ -3,8 +3,6 @@ import { dashboardService } from '../services/dashboardService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { DashboardState } from '../types';
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
-
 export const fetchDashboardSummaryThunk = createAsyncThunk(
   'dashboard/fetchSummary',
   async (_, { rejectWithValue }) => {
@@ -15,7 +13,6 @@ export const fetchDashboardSummaryThunk = createAsyncThunk(
     }
   }
 );
-
 export const fetchRecentMatchesThunk = createAsyncThunk(
   'dashboard/fetchRecentMatches',
   async (_, { rejectWithValue }) => {
@@ -26,7 +23,6 @@ export const fetchRecentMatchesThunk = createAsyncThunk(
     }
   }
 );
-
 export const fetchDashboardStatsThunk = createAsyncThunk(
   'dashboard/fetchStats',
   async (_, { rejectWithValue }) => {
@@ -37,9 +33,6 @@ export const fetchDashboardStatsThunk = createAsyncThunk(
     }
   }
 );
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
-
 const initialState: DashboardState = {
   summary: null,
   recentMatches: [],
@@ -47,7 +40,6 @@ const initialState: DashboardState = {
   loading: false,
   error: null,
 };
-
 const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
@@ -57,7 +49,6 @@ const dashboardSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // summary
     builder
       .addCase(fetchDashboardSummaryThunk.pending, (state) => {
         state.loading = true;
@@ -71,20 +62,15 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       });
-
-    // recentMatches
     builder
       .addCase(fetchRecentMatchesThunk.fulfilled, (state, action) => {
         state.recentMatches = action.payload;
       });
-
-    // stats
     builder
       .addCase(fetchDashboardStatsThunk.fulfilled, (state, action) => {
         state.stats = action.payload;
       });
   },
 });
-
 export const { clearDashboardError } = dashboardSlice.actions;
 export default dashboardSlice.reducer;

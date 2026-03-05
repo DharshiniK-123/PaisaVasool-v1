@@ -28,15 +28,14 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false);
   const [touched, setTouched]   = useState<TouchedState>({ first_name: false, last_name: false, email: false, phone_no: false, password: false });
   const [successMsg, setSuccessMsg] = useState('');
-
   useEffect(() => { clearError(); }, []);
-
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-
+  
   const handleBlur = (field: keyof TouchedState) =>
     setTouched(t => ({ ...t, [field]: true }));
-
+  
   const errors = {
     first_name: !form.first_name.trim()            && touched.first_name ? 'First Name is required' : '',
     last_name:  !form.last_name.trim()             && touched.last_name  ? 'Last Name is required'  : '',
@@ -44,14 +43,14 @@ export default function RegisterPage() {
     phone_no:      !PHONE_RE.test(form.phone_no)         && touched.phone_no      ? 'Enter a valid 10-digit Indian mobile number' : '',
     password:   !PASS_RE.test(form.password)       && touched.password   ? 'Min 6 chars with uppercase, lowercase, number & special char' : '',
   };
-
+ 
   const isValid =
     form.first_name.trim().length > 0 &&
     form.last_name.trim().length  > 0 &&
     form.email.includes('@') &&
     PHONE_RE.test(form.phone_no) &&
     PASS_RE.test(form.password);
-
+  
   const fieldState = (field: keyof typeof errors) => {
     if (errors[field]) return 'field-error';
     if (form[field] && touched[field]) return 'field-valid';
@@ -73,7 +72,6 @@ export default function RegisterPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.625rem' }}>
-
       <div className="animate-slide-up stagger-1">
         <p style={{
           fontSize: '0.68rem', fontWeight: 500, textTransform: 'uppercase',
@@ -88,7 +86,6 @@ export default function RegisterPage() {
           Create your<br />account
         </h2>
       </div>
-
       {error && (
         <div className="banner banner-error animate-slide-up">
           <span className="banner-icon">⚠</span>
@@ -101,9 +98,7 @@ export default function RegisterPage() {
           <p>{successMsg}</p>
         </div>
       )}
-
       <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-first-name" className="field-label">First Name</label>
           <div className={`field-wrap ${fieldState('first_name')}`}>
@@ -124,7 +119,6 @@ export default function RegisterPage() {
           </div>
           {errors.first_name && <span className="field-error-msg"><span>⚠</span> {errors.first_name}</span>}
         </div>
-
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-last-name" className="field-label">Last Name</label>
           <div className={`field-wrap ${fieldState('last_name')}`}>
@@ -145,7 +139,6 @@ export default function RegisterPage() {
           </div>
           {errors.last_name && <span className="field-error-msg"><span>⚠</span> {errors.last_name}</span>}
         </div>
-
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-email" className="field-label">Email</label>
           <div className={`field-wrap ${fieldState('email')}`}>
@@ -166,7 +159,6 @@ export default function RegisterPage() {
           </div>
           {errors.email && <span className="field-error-msg"><span>⚠</span> {errors.email}</span>}
         </div>
-
         <div className="animate-slide-up stagger-3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-phone" className="field-label">Mobile Number</label>
           <div className={`field-wrap ${fieldState('phone_no')}`}>
@@ -188,7 +180,6 @@ export default function RegisterPage() {
           </div>
           {errors.phone_no && <span className="field-error-msg"><span>⚠</span> {errors.phone_no}</span>}
         </div>
-
         <div className="animate-slide-up stagger-4" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="reg-password" className="field-label">Password</label>
           <div className={`field-wrap ${fieldState('password')}`}>
@@ -213,7 +204,6 @@ export default function RegisterPage() {
               {showPass ? 'Hide' : 'Show'}
             </button>
           </div>
-
           {form.password && (
             <div style={{ paddingTop: '0.125rem' }}>
               <div className="strength-track">
@@ -227,7 +217,6 @@ export default function RegisterPage() {
           )}
           {errors.password && <span className="field-error-msg"><span>⚠</span> {errors.password}</span>}
         </div>
-
         <div className="animate-slide-up stagger-5" style={{ paddingTop: '0.5rem' }}>
           <button type="submit" className="btn-primary" disabled={isLoading || !isValid}>
             {isLoading ? (
@@ -239,11 +228,9 @@ export default function RegisterPage() {
           </button>
         </div>
       </form>
-
       <div className="auth-divider animate-slide-up stagger-5">
         <span>or</span>
       </div>
-
       <p className="animate-slide-up stagger-6" style={{
         textAlign: 'center', fontSize: '0.825rem', color: 'var(--color-muted)',
       }}>

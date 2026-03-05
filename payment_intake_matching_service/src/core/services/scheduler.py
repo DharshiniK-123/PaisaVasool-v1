@@ -1,5 +1,3 @@
-# src/core/services/scheduler.py
-import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
@@ -8,18 +6,15 @@ from src.data.clients.postgres_client import AsyncSessionLocal
 from src.core.services.aging_service import get_overdue_invoices_with_bucket
 from src.core.services.reminder_service import process_reminder
 
-logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
 
 
 async def run_aging_and_reminders():
-    logger.info("Aging reminder job started.")
     async with AsyncSessionLocal() as db:
         try:
             overdue_items = await get_overdue_invoices_with_bucket(db)
             if not overdue_items:
-                logger.info("No overdue invoices found.")
                 return
             generated = skipped = failed = 0
             for item in overdue_items:
@@ -36,10 +31,8 @@ async def run_aging_and_reminders():
                         failed += 1
                 except Exception as e:
                     failed += 1
-                    logger.error(f"Error processing INV {invoice.invoice_number}: {e}")
-            logger.info(f"Aging job complete. Generated: {generated} | Skipped: {skipped} | Failed: {failed}")
         except Exception as e:
-            logger.error(f"Aging job failed: {e}")
+            raise
 
 
 async def reschedule_aging_job(hour: int, minute: int):
@@ -47,7 +40,6 @@ async def reschedule_aging_job(hour: int, minute: int):
         job_id="aging_reminder_job",
         trigger=CronTrigger(hour=hour, minute=minute),
     )
-    logger.info(f"Aging job rescheduled to {hour:02d}:{minute:02d} daily.")
 
 
 async def start_scheduler_from_db():
@@ -68,8 +60,6 @@ async def start_scheduler_from_db():
         misfire_grace_time=3600,
     )
     scheduler.start()
-    logger.info(f"APScheduler started. Aging reminders will run daily at {hour:02d}:{minute:02d}.")
     
 def stop_scheduler():
     scheduler.shutdown()
-    logger.info("APScheduler stopped.")

@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { usePayments } from '../hooks/usePayments';
 import type { Payment } from '../types/Payment';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
 const IconSearch = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
 const IconRefresh = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
 const IconClose = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
@@ -19,7 +17,6 @@ const IconBank = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IconMode = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>);
 const IconNote = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
@@ -52,8 +49,6 @@ function ModeBadge({ mode }: { mode?: string | null }) {
   const c = MODE_CONFIG[key] ?? MODE_CONFIG.OTHER;
   return <span style={{ display: 'inline-block', padding: '0.18rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{c.label}</span>;
 }
-
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
 
 function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => void }) {
   const KNOWN_KEYS = ['id','payer_name','payer_email','payer_phone','amount','payment_date','reference_number','bank_name','payment_mode','notes','document_id'];
@@ -134,7 +129,6 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
   );
 }
 
-// ─── Main Payment Table ───────────────────────────────────────────────────────
 
 export default function PaymentTable() {
   const { payments, loading, refreshing, error, refresh, clearError } = usePayments();
@@ -267,8 +261,6 @@ export default function PaymentTable() {
                   <th style={thStyle}>Ref / ID</th>
                   <th style={thStyle}>Payer</th>
                   <SortTh col="amount" label="Amount" />
-                  <th style={thStyle}>Mode</th>
-                  <th style={thStyle}>Bank</th>
                   <SortTh col="payment_date" label="Date" />
                 </tr>
               </thead>
@@ -286,8 +278,6 @@ export default function PaymentTable() {
                       </div>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{formatCurrency(p.amount)}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}><ModeBadge mode={p.payment_mode} /></td>
-                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--color-muted)', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.bank_name ?? '—'}</td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{formatDate(p.payment_date)}</td>
                   </tr>
                 ))}

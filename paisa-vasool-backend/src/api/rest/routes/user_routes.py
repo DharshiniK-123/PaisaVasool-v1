@@ -18,26 +18,24 @@ async def register_user(user_data : CreateUser, db : AsyncSession = Depends(get_
     try:
         existing_user = await get_user(user_data.email, db)
         if existing_user:
-            print(f"User already exists with email: {user_data.email}")
             raise HTTPException(status_code=400,detail="Email already exists")
         
         existing_phone = await get_user_by_phone(user_data.phone_no, db)
-
         if existing_phone:
-            print(f"User already exists with phone: {user_data.phone_no}")
             raise HTTPException(status_code=400,detail="Phone number already exists")
         
-        print(f"Creating user with data: {user_data.model_dump()}")
         await create_user(db = db, user_data=user_data)
+
         return {"message": "User registered successfully"}
+    
+    except HTTPException:
+        raise
 
     except IntegrityError as e:
-        print(f"IntegrityError: {str(e)}")
         raise HTTPException(status_code=400,detail="Email or phone number already exists")
-
+    
     except Exception as e:
-        print(f"General error: {str(e)}")
-        raise HTTPException(status_code=500,detail=f"Something went wrong {str(e)}")
+        raise HTTPException(status_code=500,detail=f"Registration failed. Please try again.")
 
 
 
@@ -81,7 +79,6 @@ async def login_user(request: Request,response:Response,user_data : UserLogin,db
         
         print("refresh token stored in DB")
         
-        # response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax",secure=False,max_age=settings.JWT_EXPIRATION_MINUTES*60) 
         response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax",secure=False,max_age=settings.JWT_REFRESH_SECRET_KEY_EXPIRATION_DAYS*86400) 
         
         
@@ -94,9 +91,11 @@ async def login_user(request: Request,response:Response,user_data : UserLogin,db
             "access_token": access_token,
             
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[refresh] Token creation failed: {e}")
-        raise HTTPException(status_code=500, detail="Token generation failed")
+        raise HTTPException(status_code=500, detail="Login failed. Please try again.")
 
 
 @router.get("/auth/me")
@@ -110,41 +109,52 @@ async def me(user=Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    refresh_token = request.cookies.get("refresh_token")
+    try:
+        refresh_token = request.cookies.get("refresh_token")
 
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Already logged out or session expired.")
 
-    payload = verify_refresh_token(refresh_token)
-    if payload is None:
-        raise HTTPException(status_code=403, detail="Invalid refresh token")
-    
-    if payload:
-        jti = payload.get("jti")
-        await revoke_refresh_token(jti, db)
+        payload = verify_refresh_token(refresh_token)
+        if payload is None:
+            raise HTTPException(status_code=403, detail="Invalid session. Please log in again.")
+        
+        if payload:
+            jti = payload.get("jti")
+            await revoke_refresh_token(jti, db)
+        response.delete_cookie("refresh_token")
 
-  
-    response.delete_cookie("refresh_token")
+        return {"message": "Logged out successfully"}
+    except HTTPException:
+        raise
 
-    return {"message": "Logged out successfully"}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Logout failed. Please try again.")
+
 
 
 @router.post("/refresh")
 async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    refresh_token = request.cookies.get("refresh_token")  # cookie works now — same origin via nginx
+    try:
+        refresh_token = request.cookies.get("refresh_token") 
 
-    if not refresh_token:
-        raise HTTPException(status_code=403, detail="Refresh token missing")
+        if not refresh_token:
+            raise HTTPException(status_code=403, detail="Session expired. Please log in again.")
 
-    payload = verify_refresh_token(refresh_token)
-    if payload is None:
-        raise HTTPException(status_code=403, detail="Invalid refresh token")
+        payload = verify_refresh_token(refresh_token)
+        if payload is None:
+            raise HTTPException(status_code=403, detail="Invalid session. Please log in again.")
 
-    jti = payload.get("jti")
-    if await is_revoked(jti=jti, db=db):
-        raise HTTPException(status_code=403, detail="Refresh token revoked")
+        jti = payload.get("jti")
+        if await is_revoked(jti=jti, db=db):
+            raise HTTPException(status_code=403, detail="Session has been revoked. Please log in again.")
 
-    access_data = create_access_token(payload={"id": payload.get("id"), "email": payload.get("email")})
-    access_token = access_data[0]
+        access_data = create_access_token(payload={"id": payload.get("id"), "email": payload.get("email")})
+        access_token = access_data[0]
 
-    return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="Session refresh failed. Please log in again.")

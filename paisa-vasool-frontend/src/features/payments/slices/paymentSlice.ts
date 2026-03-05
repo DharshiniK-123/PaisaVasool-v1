@@ -3,8 +3,6 @@ import { paymentService } from '../services/paymentService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { PaymentState } from '../types/Payment';
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
-
 export const fetchPaymentsThunk = createAsyncThunk(
   'payments/fetchAll',
   async (_, { rejectWithValue }) => {
@@ -16,7 +14,6 @@ export const fetchPaymentsThunk = createAsyncThunk(
   }
 );
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState: PaymentState = {
   payments: [],

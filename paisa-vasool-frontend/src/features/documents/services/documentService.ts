@@ -1,5 +1,8 @@
 import axiosInstance from '../../../lib/axios';
-import type { Document, InvoiceRecord, PaymentRecord, UploadResponse, DocumentType } from '../types/Document';
+import type {
+  Document, InvoiceRecord, PaymentRecord,
+  UploadResponse, JobStatusResponse, SaveResponse, DocumentType,
+} from '../types/Document';
 
 const BASE = '/api/v1/payment_intake_matching/documents';
 
@@ -8,13 +11,39 @@ export const documentService = {
   upload: async (file: File, documentType: DocumentType): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
-    console.log("formdata:", formData)
-    console.log("file:", file)
-    console.log("DOCUMENT TYPE RECEIVED:", documentType)
     const res = await axiosInstance.post<UploadResponse>(
       `${BASE}/upload?document_type=${documentType}`,
       formData
     );
+    return res.data;
+  },
+
+  pollJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
+    const MAX_ATTEMPTS = 60;  
+    const INTERVAL_MS  = 2000;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise((res) => setTimeout(res, INTERVAL_MS));
+
+      const res = await axiosInstance.get<JobStatusResponse>(`${BASE}/jobs/${jobId}/status`);
+      const data = res.data;
+
+      if (data.status === 'EXTRACTED') return data;
+      if (data.status === 'FAILED') throw new Error(data.error || 'Document processing failed.');
+    }
+
+    throw new Error('Document processing timed out. Please try again.');
+  },
+
+  saveRecords: async (
+    documentId: number,
+    documentType: DocumentType,
+    records: (InvoiceRecord | PaymentRecord)[],
+  ): Promise<SaveResponse> => {
+    const res = await axiosInstance.post<SaveResponse>(`${BASE}/${documentId}/save`, {
+      document_type: documentType,
+      records,
+    });
     return res.data;
   },
 

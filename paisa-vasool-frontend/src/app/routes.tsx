@@ -7,7 +7,6 @@ import AuthLayout from '../layout/AuthLayout';
 import AppLayout from '../layout/AppLayout';
 import { LoginPage, RegisterPage } from '../features/auth';
 
-// Lazy load all app pages
 const DashboardPage  = lazy(() => import('../features/dashboard/components/DashboardPage'));
 const UploadPage     = lazy(() => import('../features/documents/components/UploadPage'));
 const MatchingPage   = lazy(() => import('../features/matching/components/MatchingPage'));
@@ -17,19 +16,13 @@ const RemindersPage  = lazy(() => import('../features/reminders/components/Remin
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isVerifying } = useAppSelector(s => s.auth as { isAuthenticated: boolean; isVerifying: boolean });
-
-  // Still running the boot /me check — show a full-screen spinner, don't redirect yet
   if (isVerifying) return <LoadingSpinner fullScreen />;
-
   return isAuthenticated ? <>{children}</> : <Navigate to={ROUTES.LOGIN} replace />;
 }
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isVerifying } = useAppSelector(s => s.auth as { isAuthenticated: boolean; isVerifying: boolean });
-
-  // Wait for verify to finish so a logged-in user isn't briefly shown the login page
   if (isVerifying) return <LoadingSpinner fullScreen />;
-
   return !isAuthenticated ? <>{children}</> : <Navigate to={ROUTES.DASHBOARD} replace />;
 }
 
@@ -38,14 +31,10 @@ export default function AppRoutes() {
     <Suspense fallback={<LoadingSpinner fullScreen />}>
       <Routes>
         <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
-
-        {/* Auth pages */}
         <Route element={<AuthLayout />}>
           <Route path={ROUTES.LOGIN}    element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path={ROUTES.REGISTER} element={<GuestRoute><RegisterPage /></GuestRoute>} />
         </Route>
-
-        {/* App pages — all share AppLayout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.UPLOAD}    element={<UploadPage />} />
@@ -54,7 +43,6 @@ export default function AppRoutes() {
           <Route path={ROUTES.PAYMENTS}  element={<PaymentsPage />} />
           <Route path={ROUTES.REMINDERS} element={<RemindersPage />} />
         </Route>
-
         <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
       </Routes>
     </Suspense>

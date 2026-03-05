@@ -3,8 +3,6 @@ import { reminderService } from '../services/reminderService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { ReminderState } from '../types/Reminder';
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
-
 export const fetchRemindersThunk = createAsyncThunk(
   'reminders/fetchAll',
   async (_, { rejectWithValue }) => {
@@ -21,7 +19,6 @@ export const runAgingJobThunk = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       await reminderService.runAgingJob();
-      // Re-fetch reminders after job runs
       dispatch(fetchRemindersThunk());
       return 'Aging job completed successfully. Reminders dispatched.';
     } catch (err) {
@@ -29,8 +26,6 @@ export const runAgingJobThunk = createAsyncThunk(
     }
   }
 );
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState: ReminderState = {
   reminders: [],
@@ -56,7 +51,6 @@ const reminderSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // fetchReminders
     builder
       .addCase(fetchRemindersThunk.pending, (state) => {
         if (!state.refreshing) state.loading = true;
@@ -72,8 +66,6 @@ const reminderSlice = createSlice({
         state.refreshing = false;
         state.error = action.payload as string;
       });
-
-    // runAgingJob
     builder
       .addCase(runAgingJobThunk.pending, (state) => {
         state.runningJob = true;

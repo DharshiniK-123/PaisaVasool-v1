@@ -9,6 +9,9 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY:str
     GOOGLE_API_KEY: str
+    
+    REDIS_HOST: str 
+    REDIS_PORT: int 
 
     JWT_SECRET_KEY:str
     JWT_REFRESH_SECRET_KEY:str

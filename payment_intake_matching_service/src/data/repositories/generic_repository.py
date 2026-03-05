@@ -9,7 +9,7 @@ async def commit_transaction(db:AsyncSession):
         await db.commit()
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database commit failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Data upload failed")
     
 async def insert_instance(model:Type,db:AsyncSession,**kwargs):
     try:
@@ -31,7 +31,7 @@ async def bulk_insert_instance(model:Type,db:AsyncSession,data:list[dict]):
         await commit_transaction(db=db)
     except SQLAlchemyError as e:
         await db.rollback()
-        raise Exception(f"Bulk insertion failed {str(e)}")
+        raise Exception(f"Bulk insertion failed ")
 
 
 
@@ -44,7 +44,7 @@ async def update_instance_by_id(id:int,model:Type,db:AsyncSession,**kwargs):
         await commit_transaction(db=db)
     except SQLAlchemyError as e:
         await db.rollback()
-        raise Exception(f"update failed {str(e)}")
+        raise Exception(f"update failed")
     
 
 async def bulk_update_instance(model:Type,db:AsyncSession,filter:dict,data:dict):
@@ -60,7 +60,7 @@ async def bulk_update_instance(model:Type,db:AsyncSession,filter:dict,data:dict)
         await commit_transaction(db=db)
     except SQLAlchemyError as e:
         await db.rollback()
-        raise Exception(f"Bulk update failed: {str(e)}")
+        raise Exception(f"Bulk update failed")
 
 
 
@@ -73,7 +73,7 @@ async def delete_instance_by_id(id:int, model:Type,db:AsyncSession):
         await commit_transaction(db=db)
     except SQLAlchemyError as e:
         await db.rollback()
-        raise Exception(f"delete failed: {str(e)}")
+        raise Exception(f"delete failed")
 
 async def bulk_delete_instance(model:Type,db:AsyncSession,ids:List[int]):
     try:
@@ -88,7 +88,7 @@ async def bulk_delete_instance(model:Type,db:AsyncSession,ids:List[int]):
 
     except SQLAlchemyError as e:
         await db.rollback()
-        raise Exception(f"Bulk delete failed: {str(e)}")
+        raise Exception(f"Bulk delete failed")
 
 
 async def get_instance_by_id(id:int,model:Type,db:AsyncSession):
@@ -98,7 +98,7 @@ async def get_instance_by_id(id:int,model:Type,db:AsyncSession):
        
         return result.scalar_one_or_none()
     except SQLAlchemyError as e:
-        raise Exception(f"Get data failed {str(e)}")
+        raise Exception(f"Get data failed ")
     
 
 async def get_instance_by_any(model:Type,db:AsyncSession,data:dict):
@@ -113,7 +113,7 @@ async def get_instance_by_any(model:Type,db:AsyncSession,data:dict):
         
         return result.scalar_one_or_none()
     except SQLAlchemyError as e:
-        raise Exception(f"Get data failed {str(e)}")
+        raise Exception(f"Get data failed ")
     
 async def bulk_get_instance(model:Type,db:AsyncSession,**kwargs):
     try:
@@ -125,5 +125,5 @@ async def bulk_get_instance(model:Type,db:AsyncSession,**kwargs):
         
         return result.scalars().all()
     except SQLAlchemyError as e:
-        raise Exception(f"Get data failed {str(e)}")
+        raise Exception(f"Get data failed")
 

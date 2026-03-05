@@ -11,7 +11,6 @@ from src.data.models.postgres.matching_payment_invoice import MatchingPaymentInv
 
 ROUNDING_TOLERANCE = Decimal("1.00")
 
-     
 async def _get_already_matched_amount(invoice_id: int, db: AsyncSession) -> Decimal:
     result = await db.execute(
         select(func.coalesce(func.sum(MatchingPaymentInvoice.matched_amount), 0))

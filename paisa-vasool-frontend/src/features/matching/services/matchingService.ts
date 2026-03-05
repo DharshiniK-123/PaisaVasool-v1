@@ -4,10 +4,10 @@ import type { MatchRecord, MatchPaymentDetail, MatchInvoiceData } from '../types
 const BASE = '/api/v1/payment_intake_matching/matching';
 
 export const matchingService = {
-  async fetchMatches(limit = 200): Promise<MatchRecord[]> {
-    const { data } = await axiosInstance.get(`${BASE}/dashboard/recent?limit=${limit}`);
-    return Array.isArray(data) ? data : [];
-  },
+  async fetchMatches(limit = 100): Promise<MatchRecord[]> {
+  const { data } = await axiosInstance.get(`${BASE}/dashboard/recent?limit=${limit}`);
+  return Array.isArray(data) ? data : [];
+},
 
   async fetchUnmatchedPayments(): Promise<MatchPaymentDetail[]> {
     const { data } = await axiosInstance.get(`${BASE}/dashboard/unmatched-payments`);

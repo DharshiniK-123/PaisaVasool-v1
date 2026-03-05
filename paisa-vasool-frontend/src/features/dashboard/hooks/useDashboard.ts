@@ -1,11 +1,6 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {
-  fetchDashboardSummaryThunk,
-  fetchRecentMatchesThunk,
-  fetchDashboardStatsThunk,
-  clearDashboardError,
-} from '../slices/dashboardSlice';
+import {fetchDashboardSummaryThunk,fetchRecentMatchesThunk,fetchDashboardStatsThunk,clearDashboardError,} from '../slices/dashboardSlice';
 
 export function useDashboard() {
   const dispatch = useAppDispatch();

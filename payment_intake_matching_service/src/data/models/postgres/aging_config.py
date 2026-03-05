@@ -13,3 +13,4 @@ class AgingConfig(base):
     is_active           = Column(Boolean,nullable=False)
     run_hour            = Column(Integer, nullable=True)  
     run_minute          = Column(Integer, nullable=True)
+    message_template   = Column(String, nullable=True)

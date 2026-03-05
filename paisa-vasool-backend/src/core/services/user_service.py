@@ -9,7 +9,6 @@ from src.data.models.postgres.user import User
 
 
 async def create_user(db : AsyncSession,user_data):
-    
     hashed_password = get_password_hashed(user_data.password)
     user_dict = user_data.model_dump()
     user_dict["password"] = hashed_password
@@ -17,34 +16,26 @@ async def create_user(db : AsyncSession,user_data):
         
 
 async def get_user(email : str , db : AsyncSession):
-    
     user = await get_instance_by_any(db = db , model = User,data = {"email":email})
     return user
 
 async def get_user_by_phone(phone_no : str , db : AsyncSession):
-    
     user = await get_instance_by_any(db = db , model = User,data = {"phone_no":phone_no})
     return user
 
 async def is_revoked(jti: str ,db : AsyncSession):
-
     jti=to_uuid(jti)
     refresh_token = await get_instance_by_any(model = RefreshToken , db = db , data={"token_id": jti})
-
     if not refresh_token:
         return True
-    
     if refresh_token.expire_at < datetime.now(timezone.utc):
         refresh_token.is_revoked = True
-
         await commit_transaction(db=db)
         return True
-    
     return refresh_token.is_revoked
     
 
 async def insert_refresh_token(db : AsyncSession,jti : str):
-
     jti=to_uuid(jti)
     await insert_instance(model = RefreshToken , db=db , **{"token_id":jti})
     return True
@@ -52,14 +43,9 @@ async def insert_refresh_token(db : AsyncSession,jti : str):
 
 async def revoke_refresh_token(jti: str, db):
     jti_uuid = to_uuid(jti)
-    refresh_token = await get_instance_by_any(
-        model=RefreshToken,
-        db=db,
-        data={"token_id": jti_uuid}
-    )
+    refresh_token = await get_instance_by_any(model=RefreshToken,db=db,data={"token_id": jti_uuid})
     if not refresh_token:
         return False
-
     refresh_token.is_revoked = True
     await commit_transaction(db=db)
 

@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {
-  fetchMatchesThunk,
-  fetchUnmatchedPaymentsThunk,
-  fetchUnmatchedInvoicesThunk,
-  setRefreshing,
-} from '../slices/matchingSlice';
+import {fetchMatchesThunk,fetchUnmatchedPaymentsThunk,fetchUnmatchedInvoicesThunk,setRefreshing,} from '../slices/matchingSlice';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'DUPLICATE' | 'FAILED';
 
@@ -43,7 +37,8 @@ type InvoiceData = {
   [key: string]: unknown;
 };
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+
+
 
 const IconCheck = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -109,7 +104,8 @@ const IconChevronDown = () => (
   </svg>
 );
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+
+
 
 const STATUS_CONFIG: Record<MatchStatus, {
   label: string; icon: React.ReactNode;
@@ -123,8 +119,6 @@ const STATUS_CONFIG: Record<MatchStatus, {
 };
 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG) as MatchStatus[];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return (
@@ -173,7 +167,6 @@ function StatusBadge({ status }: { status: MatchStatus }) {
   );
 }
 
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
 
 function DetailDrawer({
   match, onClose,
@@ -188,25 +181,22 @@ function DetailDrawer({
   const BASE = '/api/v1/payment_intake_matching';
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      setLoading(true);
-      try {
-        const [invMatches, payMatches] = await Promise.all([
-          fetch(`${BASE}/matching/invoice/${match.invoice_id}`,   { credentials: 'include' }),
-          fetch(`${BASE}/matching/payment/${match.payment_detail_id}`, { credentials: 'include' }),
-        ]);
-        // Try to get invoice/payment data from document endpoints
-        const [invRes, payRes] = await Promise.all([
-          fetch(`${BASE}/documents/${match.invoice_id}/invoices`, { credentials: 'include' }),
-          fetch(`${BASE}/documents/${match.payment_detail_id}/payments`, { credentials: 'include' }),
-        ]);
-        if (invRes.ok) { const d = await invRes.json(); setInvoice(Array.isArray(d) ? d[0] : d); }
-        if (payRes.ok) { const d = await payRes.json(); setPayment(Array.isArray(d) ? d[0] : d); }
-      } catch {}
-      finally { setLoading(false); }
-    };
-    fetchDetails();
-  }, [match.id]);
+  const fetchDetails = async () => {
+    setLoading(true);
+    try {
+      const BASE = '/api/v1/payment_intake_matching/matching';
+      const [invRes, payRes] = await Promise.all([
+        fetch(`${BASE}/invoice-detail/${match.invoice_id}`, { credentials: 'include' }),
+        fetch(`${BASE}/payment-detail/${match.payment_detail_id}`, { credentials: 'include' }),
+      ]);
+
+      if (invRes.ok) { const d = await invRes.json(); setInvoice(d); }
+      if (payRes.ok) { const d = await payRes.json(); setPayment(d); }
+    } catch {}
+    finally { setLoading(false); }
+  };
+  fetchDetails();
+}, [match.id]);
 
   const cfg = STATUS_CONFIG[match.match_status];
 
@@ -228,7 +218,6 @@ function DetailDrawer({
         animation: 'slideInRight 0.3s var(--ease-out-expo) both',
       }}>
 
-        {/* Header */}
         <div style={{
           padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)',
           background: 'var(--color-surface-2)',
@@ -261,10 +250,8 @@ function DetailDrawer({
           </button>
         </div>
 
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* Match summary */}
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>Match Summary</p>
             <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0.25rem 0.875rem' }}>
@@ -291,7 +278,6 @@ function DetailDrawer({
             <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}><Spinner /></div>
           ) : (
             <>
-              {/* Invoice detail */}
               {invoice && (
                 <section>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -308,7 +294,6 @@ function DetailDrawer({
                 </section>
               )}
 
-              {/* Payment detail */}
               {payment && (
                 <section>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -341,7 +326,6 @@ function DetailDrawer({
   );
 }
 
-// ─── Unmatched Tab ────────────────────────────────────────────────────────────
 
 function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
   const dispatch = useAppDispatch();
@@ -376,7 +360,6 @@ function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* Search */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.625rem',
         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -452,7 +435,6 @@ function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
   );
 }
 
-// ─── All Matches Tab ──────────────────────────────────────────────────────────
 
 function AllMatchesTab() {
   const dispatch = useAppDispatch();
@@ -477,13 +459,11 @@ function AllMatchesTab() {
     });
   };
 
-  // Count per status
   const counts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = matches.filter(m => m.match_status === s).length;
     return acc;
   }, {} as Record<MatchStatus, number>);
 
-  // Filter + search + sort
   const filtered = matches
     .filter(m => activeFilters.size === 0 || activeFilters.has(m.match_status))
     .filter(m => {
@@ -513,9 +493,7 @@ function AllMatchesTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-      {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {/* Search */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '0.5rem',
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -529,7 +507,6 @@ function AllMatchesTab() {
           />
         </div>
 
-        {/* Status filters */}
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
           {ALL_STATUSES.map(s => {
             const cfg = STATUS_CONFIG[s];
@@ -553,7 +530,6 @@ function AllMatchesTab() {
           })}
         </div>
 
-        {/* Sort + Refresh */}
         <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
           <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} style={{
             display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem',
@@ -574,7 +550,6 @@ function AllMatchesTab() {
         </div>
       </div>
 
-      {/* Active filter chips */}
       {activeFilters.size > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>Filtering:</span>
@@ -601,7 +576,6 @@ function AllMatchesTab() {
         </div>
       )}
 
-      {/* Table */}
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '3.5rem' }}><Spinner /></div>
@@ -683,13 +657,10 @@ function AllMatchesTab() {
         {activeFilters.size > 0 && ` (filtered from ${matches.length})`}
       </p>
 
-      {/* Drawer */}
       {selected && <DetailDrawer match={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
-
-// ─── Main Matching Page ───────────────────────────────────────────────────────
 
 type TabKey = 'all' | 'unmatched-payments' | 'unmatched-invoices';
 
@@ -716,7 +687,6 @@ export default function MatchingPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1100 }}>
 
-      {/* Header */}
       <div>
         <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', marginBottom: '0.4rem' }}>
           Reconciliation
@@ -729,7 +699,6 @@ export default function MatchingPage() {
         </p>
       </div>
 
-      {/* Tabs */}
       <div style={{
         display: 'flex', gap: '0.25rem', flexWrap: 'wrap',
         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -744,7 +713,6 @@ export default function MatchingPage() {
         ))}
       </div>
 
-      {/* Tab content */}
       <div key={activeTab} style={{ animation: 'fadeSlideUp 0.3s var(--ease-out-expo) both' }}>
         {activeTab === 'all'                && <AllMatchesTab />}
         {activeTab === 'unmatched-payments' && <UnmatchedTab type="payments" />}

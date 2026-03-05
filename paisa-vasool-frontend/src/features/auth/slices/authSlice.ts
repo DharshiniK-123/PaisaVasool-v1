@@ -3,9 +3,6 @@ import { authService } from '../services/authService';
 import type { LoginPayload, LoginResponse } from '../types';
 import axiosInstance from '../../../lib/axios';
 
-// ─────────────────────────────────────────────
-// Thunks
-// ─────────────────────────────────────────────
 
 export const loginThunk = createAsyncThunk<LoginResponse, LoginPayload, { rejectValue: string }>(
   'auth/login',
@@ -17,7 +14,6 @@ export const loginThunk = createAsyncThunk<LoginResponse, LoginPayload, { reject
     }
   }
 );
-
 export const registerThunk = createAsyncThunk(
   'auth/register',
   async (payload: { email: string; password: string }, { rejectWithValue }) => {
@@ -28,15 +24,12 @@ export const registerThunk = createAsyncThunk(
     }
   }
 );
-
 export const logoutThunk = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
       await authService.logout();
     } catch (err: any) {
-      // Even if the API call fails, we still want to clear local state
-      // so don't rejectWithValue here — let fulfilled always run
     }
   }
 );
@@ -45,13 +38,10 @@ export const verifyAuthThunk = createAsyncThunk(
   'auth/verify',
   async (_, { rejectWithValue }) => {
     try {
-      // Cookie is sent automatically — get fresh access token
       const refreshRes = await axiosInstance.post<{ access_token: string }>(
         '/api/v1/users/refresh'
       );
       const accessToken = refreshRes.data.access_token;
-
-      // Get user details
       const meRes = await axiosInstance.get('/api/v1/users/auth/me', {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -62,11 +52,6 @@ export const verifyAuthThunk = createAsyncThunk(
     }
   }
 );
-
-
-// ─────────────────────────────────────────────
-// Slice
-// ─────────────────────────────────────────────
 
 interface AuthState {
   user: { id: string; email: string; first_name?: string; last_name?: string } | null;
@@ -96,7 +81,6 @@ const authSlice = createSlice({
     setAccessToken(state, action: PayloadAction<string>) {
       state.accessToken = action.payload;
     },
-    // FIX: synchronous logout action to immediately wipe all auth state
     logout(state) {
       state.user = null;
       state.accessToken = null;
@@ -105,7 +89,6 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // ── Login ──
     builder
       .addCase(loginThunk.pending, (state) => {
         state.isLoading = true;
@@ -124,8 +107,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       });
-
-    // ── Register ──
     builder
       .addCase(registerThunk.pending, (state) => {
         state.isLoading = true;
@@ -138,8 +119,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       });
-
-    // ── Logout — always clear state whether API succeeded or failed ──
     builder
       .addCase(logoutThunk.fulfilled, (state) => {
         state.user = null;
@@ -148,14 +127,11 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(logoutThunk.rejected, (state) => {
-        // API failed but we still log out locally
         state.user = null;
         state.accessToken = null;
         state.isAuthenticated = false;
         state.error = null;
       });
-
-    // ── Verify on Boot ──
     builder
       .addCase(verifyAuthThunk.pending, (state) => {
         state.isVerifying = true;

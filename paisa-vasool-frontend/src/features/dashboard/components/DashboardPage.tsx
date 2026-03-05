@@ -10,8 +10,8 @@ import {
   fetchUnmatchedPaymentsThunk,
   fetchUnmatchedInvoicesThunk,
 } from '../../matching/slices/matchingSlice';
+import axiosInstance from '../../../lib/axios';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'DUPLICATE' | 'FAILED';
 
@@ -52,7 +52,20 @@ type DashboardSummary = {
   FAILED: MatchRecord[];
 };
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+type Discrepancy = {
+  id: number;
+  match_status: 'FAILED' | 'DUPLICATE';
+  match_reason: string | null;
+  payment_amount: number | null;
+  currency: string | null;
+  invoice_no: string | null;
+  paid_date: string | null;
+  payer_name: string | null;
+  payer_email: string | null;
+  created_at: string;
+};
+
+
 
 const IconCheck = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +127,10 @@ const IconBell = () => (
   </svg>
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+
+
+
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return (
@@ -125,19 +141,16 @@ function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; 
     }} />
   );
 }
-
 function formatCurrency(val?: number | null) {
   if (val == null) return '—';
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 }
-
 function formatDate(str?: string | null) {
   if (!str) return '—';
   const d = new Date(str);
   if (isNaN(d.getTime())) return str;
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
 function timeAgo(str?: string | null) {
   if (!str) return '—';
   const d = new Date(str);
@@ -151,7 +164,9 @@ function timeAgo(str?: string | null) {
   return `${days}d ago`;
 }
 
-// ─── Status config ────────────────────────────────────────────────────────────
+
+
+
 
 const STATUS_CONFIG: Record<MatchStatus, {
   label: string; icon: React.ReactNode;
@@ -178,15 +193,15 @@ function StatusBadge({ status }: { status: MatchStatus }) {
   );
 }
 
-// ─── Summary Cards ────────────────────────────────────────────────────────────
+
+
+
 
 function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; loading: boolean }) {
   const navigate = useNavigate();
-
   const total = summary
     ? Object.values(summary).reduce((acc, arr) => acc + arr.length, 0)
     : 0;
-
   const cards = [
     {
       key: 'FULL' as MatchStatus,
@@ -227,7 +242,6 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
 
   return (
     <div>
-      {/* Total bar */}
       <div style={{
         padding: '1rem 1.375rem', marginBottom: '0.75rem',
         background: 'var(--color-surface)',
@@ -245,8 +259,6 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
             : <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }}>{total}</p>
           }
         </div>
-
-        {/* Mini bar chart */}
         {!loading && summary && total > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', height: 28 }}>
             {cards.filter(c => c.count > 0).map(c => {
@@ -271,8 +283,6 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
           </div>
         )}
       </div>
-
-      {/* Cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.625rem' }}>
         {cards.map((card, i) => {
           const cfg = STATUS_CONFIG[card.key];
@@ -316,7 +326,8 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
   );
 }
 
-// ─── Unmatched Row ────────────────────────────────────────────────────────────
+
+
 
 function UnmatchedSection({
   unmatchedPayments, unmatchedInvoices, loading,
@@ -337,16 +348,13 @@ function UnmatchedSection({
     color: active ? 'var(--color-accent)' : 'var(--color-muted)',
     transition: 'all 0.18s',
   });
-
   const rows = tab === 'payments' ? unmatchedPayments : unmatchedInvoices;
-
   return (
     <div style={{
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
       borderRadius: 14, overflow: 'hidden',
     }}>
-      {/* Header */}
       <div style={{
         padding: '1rem 1.25rem',
         borderBottom: '1px solid var(--color-border)',
@@ -378,8 +386,6 @@ function UnmatchedSection({
           </button>
         </div>
       </div>
-
-      {/* Table */}
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2.5rem' }}>
           <Spinner />
@@ -490,12 +496,10 @@ function UnmatchedSection({
     </div>
   );
 }
-
 function isOverdue(dateStr?: string | null) {
   if (!dateStr) return false;
   return new Date(dateStr) < new Date();
 }
-
 const thStyle: React.CSSProperties = {
   padding: '0.6rem 1rem', textAlign: 'left',
   fontSize: '0.6rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif',
@@ -503,18 +507,14 @@ const thStyle: React.CSSProperties = {
   color: 'var(--color-muted)', whiteSpace: 'nowrap',
   background: 'var(--color-surface)',
 };
-
 const tdStyle: React.CSSProperties = {
   padding: '0.65rem 1rem', color: 'var(--color-text)',
   whiteSpace: 'nowrap', maxWidth: 180,
   overflow: 'hidden', textOverflow: 'ellipsis',
 };
 
-// ─── Recent Matches ───────────────────────────────────────────────────────────
-
 function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: boolean }) {
   const navigate = useNavigate();
-
   return (
     <div style={{
       background: 'var(--color-surface)',
@@ -546,7 +546,6 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
           View all <IconArrowRight />
         </button>
       </div>
-
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2.5rem' }}><Spinner /></div>
       ) : matches.length === 0 ? (
@@ -571,7 +570,6 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
               >
-                {/* Left: icon + IDs */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: 9, flexShrink: 0,
@@ -597,8 +595,6 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
                     </p>
                   </div>
                 </div>
-
-                {/* Right: badge */}
                 <StatusBadge status={m.match_status} />
               </div>
             );
@@ -609,7 +605,9 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
   );
 }
 
-// ─── Quick Actions ────────────────────────────────────────────────────────────
+
+
+
 
 function QuickActions() {
   const navigate = useNavigate();
@@ -619,7 +617,6 @@ function QuickActions() {
     { label: 'View Invoices',   sub: 'All invoice records',     icon: <IconInvoice />, to: ROUTES.INVOICES, accent: false },
     { label: 'View Reminders',  sub: 'Aging notifications',     icon: <IconBell />,   to: ROUTES.REMINDERS, accent: false },
   ];
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.25rem' }}>
@@ -671,7 +668,230 @@ function QuickActions() {
   );
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
+
+function DiscrepanciesPanel() {
+  const [items, setItems]       = useState<Discrepancy[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axiosInstance.get(
+        '/api/v1/payment_intake_matching/matching/dashboard/discrepancies'
+      );
+      setItems(res.data);
+    } catch {
+      setError('Could not load discrepancies.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); }, []);
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 14, overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '1rem 1.25rem',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--color-surface-2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'rgba(248,113,113,0.1)',
+            border: '1px solid rgba(248,113,113,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#f87171', fontSize: '0.75rem',
+          }}>⚠</div>
+          <div>
+            <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text)' }}>
+              Discrepancies
+            </p>
+            <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>
+              Failed &amp; duplicate matches requiring manual review
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {!loading && items.length > 0 && (
+            <span style={{
+              padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.65rem',
+              fontWeight: 700, background: 'rgba(248,113,113,0.12)',
+              color: '#f87171', border: '1px solid rgba(248,113,113,0.2)',
+            }}>
+              {items.length}
+            </span>
+          )}
+          <button
+            onClick={load}
+            style={{
+              background: 'none', border: '1px solid var(--color-border)',
+              borderRadius: 7, padding: '0.35rem', cursor: 'pointer',
+              color: 'var(--color-muted)', display: 'flex',
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-text)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-muted)'}
+          >
+            <IconRefresh />
+          </button>
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem' }}>
+          <Spinner size={16} color="#f87171" />
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Loading…</span>
+        </div>
+      ) : error ? (
+        <div style={{ padding: '1.25rem', color: '#f87171', fontSize: '0.8rem' }}>⚠ {error}</div>
+      ) : items.length === 0 ? (
+        <div style={{ padding: '2.5rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>✓</p>
+          <p style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--color-text)' }}>No discrepancies</p>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-muted)', marginTop: '0.25rem' }}>
+            All matches resolved successfully
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {items.map((item, i) => {
+            const isFailed = item.match_status === 'FAILED';
+            const color    = isFailed ? '#f87171' : '#fbbf24';
+            const bg       = isFailed ? 'rgba(248,113,113,0.06)' : 'rgba(251,191,36,0.06)';
+            const border   = isFailed ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)';
+            const isOpen   = expanded === item.id;
+
+            return (
+              <div
+                key={item.id}
+                style={{ borderBottom: i < items.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+              >
+                <div
+                  onClick={() => setExpanded(isOpen ? null : item.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.875rem',
+                    padding: '0.875rem 1.25rem', cursor: 'pointer',
+                    background: isOpen ? bg : 'transparent',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                  onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                >
+                  <span style={{
+                    flexShrink: 0, padding: '0.15rem 0.5rem', borderRadius: 99,
+                    fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    background: `${color}18`, color, border: `1px solid ${color}33`,
+                  }}>
+                    {item.match_status}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: '0.78rem', fontWeight: 500, color: 'var(--color-text)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {item.payer_name ?? item.payer_email ?? 'Unknown payer'}
+                      {item.invoice_no && (
+                        <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>
+                          {' '}· {item.invoice_no}
+                        </span>
+                      )}
+                    </p>
+                    <p style={{
+                      fontSize: '0.68rem', color: 'var(--color-muted)', marginTop: '0.1rem',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {item.match_reason ?? '—'}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                      {item.payment_amount != null
+                        ? new Intl.NumberFormat('en-IN', {
+                            style: 'currency',
+                            currency: item.currency ?? 'INR',
+                            maximumFractionDigits: 0,
+                          }).format(item.payment_amount)
+                        : '—'}
+                    </p>
+                    <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)', marginTop: '0.1rem' }}>
+                      {item.paid_date
+                        ? new Date(item.paid_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                        : '—'}
+                    </p>
+                  </div>
+                  <svg
+                    width="13" height="13" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    style={{
+                      flexShrink: 0, color: 'var(--color-muted)',
+                      transform: isOpen ? 'rotate(90deg)' : 'none',
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+                {isOpen && (
+                  <div style={{
+                    padding: '0.75rem 1.25rem 1.125rem',
+                    background: bg,
+                    borderTop: `1px solid ${border}`,
+                  }}>
+                    <p style={{
+                      fontSize: '0.6rem', textTransform: 'uppercase',
+                      letterSpacing: '0.1em', color, marginBottom: '0.4rem',
+                    }}>
+                      Reason
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--color-text)', lineHeight: 1.65 }}>
+                      {item.match_reason ?? 'No reason recorded.'}
+                    </p>
+                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.875rem', flexWrap: 'wrap' }}>
+                      {item.payer_email && (
+                        <div>
+                          <p style={{ fontSize: '0.6rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email</p>
+                          <p style={{ fontSize: '0.73rem', color: 'var(--color-text)' }}>{item.payer_email}</p>
+                        </div>
+                      )}
+                      {item.invoice_no && (
+                        <div>
+                          <p style={{ fontSize: '0.6rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice Ref</p>
+                          <p style={{ fontSize: '0.73rem', color: 'var(--color-text)' }}>{item.invoice_no}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p style={{ fontSize: '0.6rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Detected</p>
+                        <p style={{ fontSize: '0.73rem', color: 'var(--color-text)' }}>
+                          {new Date(item.created_at).toLocaleString('en-IN', {
+                            day: 'numeric', month: 'short',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+
 
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
@@ -693,19 +913,14 @@ export default function DashboardPage() {
   };
 
   useEffect(() => { fetchAll(); }, [dispatch]);
-
-  // Auto-refresh every 60s
   useEffect(() => {
     const t = setInterval(() => fetchAll(true), 60000);
     return () => clearInterval(t);
   }, []);
 
   const totalUnmatched = unmatchedPayments.length + unmatchedInvoices.length;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1200 }}>
-
-      {/* ── Header row ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', marginBottom: '0.35rem' }}>
@@ -715,7 +930,6 @@ export default function DashboardPage() {
             Payment Operations
           </h2>
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           {lastRefresh && !loading && (
             <span style={{ fontSize: '0.65rem', color: 'var(--color-faint)' }}>
@@ -741,16 +955,12 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
-
-      {/* ── Error banner ── */}
       {error && (
         <div className="banner banner-error animate-fade-in">
           <span className="banner-icon">⚠</span>
           <p>{error} — <button onClick={() => fetchAll()} style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'Outfit, sans-serif', fontSize: 'inherit', padding: 0 }}>Retry</button></p>
         </div>
       )}
-
-      {/* ── Attention banner (unmatched) ── */}
       {!loading && totalUnmatched > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -766,28 +976,19 @@ export default function DashboardPage() {
           </p>
         </div>
       )}
-
-      {/* ── Summary cards ── */}
       <SummaryCards summary={summary} loading={loading} />
-
-      {/* ── Main 2-col layout ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', gap: '1.25rem', alignItems: 'start' }}>
-
-        {/* Left col */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minWidth: 0 }}>
           <UnmatchedSection
             unmatchedPayments={unmatchedPayments}
             unmatchedInvoices={unmatchedInvoices}
             loading={loading}
           />
+          <DiscrepanciesPanel />
           <RecentMatches matches={recentMatches} loading={loading} />
         </div>
-
-        {/* Right col */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <QuickActions />
-
-          {/* Mini status legend */}
           <div style={{
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
@@ -821,7 +1022,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) {

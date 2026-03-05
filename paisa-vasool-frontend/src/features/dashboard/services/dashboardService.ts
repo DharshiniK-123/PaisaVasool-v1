@@ -8,12 +8,10 @@ export const dashboardService = {
     const { data } = await axiosInstance.get(`${BASE}/dashboard/summary`);
     return data;
   },
-
   async fetchRecentMatches(limit = 10) {
     const { data } = await axiosInstance.get(`${BASE}/dashboard/recent?limit=${limit}`);
     return Array.isArray(data) ? data : [];
   },
-
   async fetchStats(): Promise<DashboardStats> {
     const { data } = await axiosInstance.get(`${BASE}/dashboard/stats`);
     return data;

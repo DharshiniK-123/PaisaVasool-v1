@@ -3,7 +3,6 @@ import { invoiceService } from '../services/invoiceService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { InvoiceState } from '../types/Invoice';
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
 
 export const fetchInvoicesThunk = createAsyncThunk(
   'invoices/fetchAll',
@@ -15,8 +14,6 @@ export const fetchInvoicesThunk = createAsyncThunk(
     }
   }
 );
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState: InvoiceState = {
   invoices: [],

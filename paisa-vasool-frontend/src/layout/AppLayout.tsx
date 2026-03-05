@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-
+import UploadProgressBanner from '../features/documents/components/Uploadprogresbanner';
 import { ROUTES } from '../config/constants';
 import { logoutThunk, logout } from '../features/auth';
 import axiosInstance from '../lib/axios';
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
 
 const IconDashboard = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -84,7 +82,6 @@ const IconChevronRight = () => (
   </svg>
 );
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
   { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: <IconDashboard /> },
@@ -114,7 +111,6 @@ const SEVERITY_STYLE: Record<Severity, { bg: string; text: string; border: strin
   SCHEDULER: { bg: 'rgba(139,92,246,0.1)',   text: '#a78bfa', border: 'rgba(139,92,246,0.25)'  },
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type AgingRule = {
   id: number;
@@ -135,7 +131,6 @@ type FormState = {
   message_template: string;
 };
 
-// ─── Shared mini-components ───────────────────────────────────────────────────
 
 function SeverityBadge({ severity }: { severity: string }) {
   const s = SEVERITY_STYLE[severity as Severity] ?? SEVERITY_STYLE.LOW;
@@ -161,7 +156,6 @@ function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; 
   );
 }
 
-// ─── Settings Drawer ──────────────────────────────────────────────────────────
 
 function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [rules, setRules]     = useState<AgingRule[]>([]);
@@ -181,7 +175,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
     try {
-      // FIX 2: use axiosInstance instead of raw fetch — ensures correct baseURL + auth token
       const res = await axiosInstance.get<AgingRule[]>(BASE + '/');
       setRules(Array.isArray(res.data) ? res.data : []);
     } catch {
@@ -190,8 +183,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
       setLoading(false);
     }
   };
-
-  // FIX 1: useEffect (not useState) so fetchRules actually runs on mount
   useEffect(() => { fetchRules(); }, []);
 
   const flash = (msg: string, type: 'success' | 'error') => {
@@ -201,7 +192,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
 
   const handleAdd = async () => {
     if (!form.due_days_from) return flash('Days From is required', 'error');
-    if (!form.message_template.trim()) return flash('Message template is required', 'error');
     if (form.severity === 'SCHEDULER' && !form.run_hour) return flash('Run hour is required for SCHEDULER', 'error');
 
     setSaving(true);
@@ -214,8 +204,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
       if (form.due_days_to) body.due_days_to = Number(form.due_days_to);
       if (form.run_hour)    body.run_hour    = Number(form.run_hour);
       if (form.run_minute)  body.run_minute  = Number(form.run_minute);
-
-      // FIX 2: use axiosInstance instead of raw fetch
       await axiosInstance.post(BASE + '/', body);
 
       flash('Aging rule added successfully', 'success');
@@ -231,7 +219,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const handleDelete = async (id: number) => {
     setDeleting(id);
     try {
-      // FIX 2: use axiosInstance instead of raw fetch
       await axiosInstance.delete(`${BASE}/${id}`);
       setRules(r => r.filter(x => x.id !== id));
       flash('Rule deleted', 'success');
@@ -257,7 +244,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -266,8 +252,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
           animation: 'fadeIn 0.2s ease both',
         }}
       />
-
-      {/* Drawer panel */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
         width: '100%', maxWidth: 500,
@@ -277,8 +261,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
         boxShadow: '-12px 0 48px rgba(0,0,0,0.55)',
         animation: 'slideInRight 0.32s var(--ease-out-expo) both',
       }}>
-
-        {/* Drawer header */}
         <div style={{
           padding: '1.25rem 1.5rem',
           borderBottom: '1px solid var(--color-border)',
@@ -319,11 +301,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             <IconClose />
           </button>
         </div>
-
-        {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-          {/* Banners */}
           {error && (
             <div className="banner banner-error animate-fade-in">
               <span className="banner-icon">⚠</span><p>{error}</p>
@@ -334,8 +312,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
               <span className="banner-icon">✓</span><p>{success}</p>
             </div>
           )}
-
-          {/* ── Active Rules ── */}
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)' }}>
@@ -351,7 +327,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                 </span>
               )}
             </div>
-
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '2.5rem 0' }}>
                 <Spinner />
@@ -400,7 +375,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                       {rule.severity === 'SCHEDULER' && rule.run_hour != null && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.4rem' }}>
                           <span style={{ fontSize: '0.65rem', color: '#a78bfa' }}>
-                            ⏰ Runs daily at {String(rule.run_hour).padStart(2, '0')}:{String(rule.run_minute ?? 0).padStart(2, '0')}
+                             Runs daily at {String(rule.run_hour).padStart(2, '0')}:{String(rule.run_minute ?? 0).padStart(2, '0')}
                           </span>
                         </div>
                       )}
@@ -425,18 +400,13 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             )}
           </section>
 
-          {/* ── Divider ── */}
           <div style={{ height: 1, background: 'linear-gradient(to right, transparent, var(--color-border), transparent)' }} />
-
-          {/* ── Add New Rule ── */}
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '1rem' }}>
               Add New Rule
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-
-              {/* Days range */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
                   <label style={labelStyle}>Days From *</label>
@@ -459,8 +429,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                   />
                 </div>
               </div>
-
-              {/* Severity */}
               <div>
                 <label style={labelStyle}>Severity *</label>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -489,7 +457,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Scheduler fields (conditional) */}
               {form.severity === 'SCHEDULER' && (
                 <div style={{
                   display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem',
@@ -517,25 +484,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               )}
-
-              {/* Message template */}
-              <div>
-                <label style={labelStyle}>Message Template *</label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. Invoice #{invoice_id} is {days} days overdue. Please settle ₹{amount} immediately."
-                  style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
-                  value={form.message_template}
-                  onChange={e => setForm(f => ({ ...f, message_template: e.target.value }))}
-                  onFocus={e => (e.target as HTMLTextAreaElement).style.borderColor = 'var(--color-border-focus)'}
-                  onBlur={e => (e.target as HTMLTextAreaElement).style.borderColor = 'var(--color-border)'}
-                />
-                <p style={{ fontSize: '0.65rem', color: 'var(--color-faint)', marginTop: '0.35rem' }}>
-                  Use <code style={{ color: 'var(--color-accent)', fontSize: '0.65rem' }}>{'{invoice_id}'}</code>, <code style={{ color: 'var(--color-accent)', fontSize: '0.65rem' }}>{'{days}'}</code>, <code style={{ color: 'var(--color-accent)', fontSize: '0.65rem' }}>{'{amount}'}</code> as placeholders
-                </p>
-              </div>
-
-              {/* Submit */}
               <button
                 onClick={handleAdd}
                 disabled={saving}
@@ -560,8 +508,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-
 function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const dispatch = useAppDispatch();
@@ -569,10 +515,8 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   const user = useAppSelector(s => s.auth.user);
 
   const handleLogout = async () => {
-    // Immediately clear auth state so refresh can't restore the session
     dispatch(logout());
     navigate(ROUTES.LOGIN);
-    // Fire-and-forget: tell backend to clear the cookie
     dispatch(logoutThunk());
   };
 
@@ -588,8 +532,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         position: 'fixed', top: 0, left: 0, bottom: 0,
         zIndex: 30, overflow: 'hidden', flexShrink: 0,
       }}>
-
-        {/* ── Logo row ── */}
         <div style={{
           padding: collapsed ? '0 0' : '0 1.125rem',
           height: 60, borderBottom: '1px solid var(--color-border)',
@@ -635,7 +577,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           )}
         </div>
 
-        {/* ── Expand button (when collapsed) ── */}
         {collapsed && (
           <button
             onClick={onToggle}
@@ -653,8 +594,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             <IconChevronRight />
           </button>
         )}
-
-        {/* ── Nav links ── */}
         <nav style={{
           flex: 1, padding: '0.75rem 0.5rem',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',
@@ -685,14 +624,12 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           ))}
         </nav>
 
-        {/* ── Bottom section ── */}
         <div style={{
           padding: '0.625rem 0.5rem',
           borderTop: '1px solid var(--color-border)',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',
         }}>
 
-          {/* User info (expanded only) */}
           {!collapsed && user && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '0.6rem',
@@ -724,7 +661,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             </div>
           )}
 
-          {/* Settings */}
           <button
             onClick={() => setSettingsOpen(true)}
             title={collapsed ? 'Settings' : undefined}
@@ -745,7 +681,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             {!collapsed && <span>Settings</span>}
           </button>
 
-          {/* Logout */}
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
@@ -772,8 +707,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
     </>
   );
 }
-
-// ─── Top Bar ──────────────────────────────────────────────────────────────────
 
 function TopBar() {
   const location = useLocation();
@@ -812,8 +745,6 @@ function TopBar() {
   );
 }
 
-// ─── App Layout (default export) ─────────────────────────────────────────────
-
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const SIDEBAR_W = collapsed ? 60 : 220;
@@ -823,7 +754,6 @@ export default function AppLayout() {
       className="noise-overlay"
       style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}
     >
-      {/* Ambient glow */}
       <div style={{
         position: 'fixed', top: 0, left: 0, width: 350, height: 350,
         pointerEvents: 'none', zIndex: 0,
@@ -831,8 +761,6 @@ export default function AppLayout() {
       }} />
 
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
-
-      {/* Page content */}
       <div style={{
         marginLeft: SIDEBAR_W,
         flex: 1, minWidth: 0,
@@ -846,6 +774,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <UploadProgressBanner />
     </div>
   );
 }

@@ -27,3 +27,5 @@ langchain
 langchain-core
 langchain-community
 langchain-google-genai
+redis
+rq

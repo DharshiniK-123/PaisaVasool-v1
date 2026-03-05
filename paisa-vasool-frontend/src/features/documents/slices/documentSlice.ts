@@ -1,9 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { documentService } from '../services/documentService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
-import type { DocumentState, DocumentType } from '../types/Document';
-
-// ─── Thunks ───────────────────────────────────────────────────────────────────
+import type { DocumentState, DocumentType, InvoiceRecord, PaymentRecord } from '../types/Document';
 
 export const uploadDocumentThunk = createAsyncThunk(
   'documents/upload',
@@ -16,15 +14,29 @@ export const uploadDocumentThunk = createAsyncThunk(
   }
 );
 
-export const fetchPreviewThunk = createAsyncThunk(
-  'documents/fetchPreview',
-  async ({ documentId, documentType }: { documentId: number; documentType: DocumentType }, { rejectWithValue }) => {
+export const pollJobStatusThunk = createAsyncThunk(
+  'documents/pollJobStatus',
+  async ({ jobId }: { jobId: string }, { rejectWithValue }) => {
     try {
-      if (documentType === 'INVOICE') {
-        return await documentService.getInvoices(documentId);
-      } else {
-        return await documentService.getPayments(documentId);
-      }
+      return await documentService.pollJobStatus(jobId);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err));
+    }
+  }
+);
+
+export const saveRecordsThunk = createAsyncThunk(
+  'documents/saveRecords',
+  async (
+    { documentId, documentType, records }: {
+      documentId: number;
+      documentType: DocumentType;
+      records: (InvoiceRecord | PaymentRecord)[];
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await documentService.saveRecords(documentId, documentType, records);
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err));
     }
@@ -42,21 +54,22 @@ export const fetchDocumentsThunk = createAsyncThunk(
   }
 );
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState: DocumentState = {
-  uploading: false,
-  uploadError: null,
+  uploading:         false,
+  uploadError:       null,
   uploadedDocumentId: null,
-  uploadedFileName: null,
-
+  uploadedFileName:  null,
+  uploadedJobId:     null,
+  processing:   false,
+  processError: null,
   previewRows: [],
-  previewLoading: false,
-  previewError: null,
-
-  documents: [],
+  saving:     false,
+  saveError:  null,
+  savedCount: null,
+  documents:        [],
   documentsLoading: false,
-  documentsError: null,
+  documentsError:   null,
 };
 
 const documentSlice = createSlice({
@@ -64,70 +77,94 @@ const documentSlice = createSlice({
   initialState,
   reducers: {
     resetUpload(state) {
-      state.uploading = false;
-      state.uploadError = null;
+      state.uploading          = false;
+      state.uploadError        = null;
       state.uploadedDocumentId = null;
-      state.uploadedFileName = null;
-      state.previewRows = [];
-      state.previewLoading = false;
-      state.previewError = null;
+      state.uploadedFileName   = null;
+      state.uploadedJobId      = null;
+      state.processing         = false;
+      state.processError       = null;
+      state.previewRows        = [];
+      state.saving             = false;
+      state.saveError          = null;
+      state.savedCount         = null;
     },
     clearUploadError(state) {
-      state.uploadError = null;
+      state.uploadError  = null;
+      state.processError = null;
+      state.saveError    = null;
+    },
+    updatePreviewRows(state, action) {
+      state.previewRows = action.payload;
     },
   },
   extraReducers: (builder) => {
-    // upload
     builder
       .addCase(uploadDocumentThunk.pending, (state) => {
-        state.uploading = true;
-        state.uploadError = null;
+        state.uploading          = true;
+        state.uploadError        = null;
         state.uploadedDocumentId = null;
-        state.uploadedFileName = null;
-        state.previewRows = [];
+        state.uploadedFileName   = null;
+        state.uploadedJobId      = null;
+        state.previewRows        = [];
+        state.processing         = false;
+        state.processError       = null;
+        state.saving             = false;
+        state.saveError          = null;
+        state.savedCount         = null;
       })
       .addCase(uploadDocumentThunk.fulfilled, (state, action) => {
-        state.uploading = false;
+        state.uploading          = false;
         state.uploadedDocumentId = action.payload.document_id;
-        state.uploadedFileName = action.payload.file_name;
+        state.uploadedFileName   = action.payload.file_name;
+        state.uploadedJobId      = action.payload.job_id;
       })
       .addCase(uploadDocumentThunk.rejected, (state, action) => {
-        state.uploading = false;
+        state.uploading   = false;
         state.uploadError = action.payload as string;
       });
-
-    // preview
     builder
-      .addCase(fetchPreviewThunk.pending, (state) => {
-        state.previewLoading = true;
-        state.previewError = null;
-        state.previewRows = [];
+      .addCase(pollJobStatusThunk.pending, (state) => {
+        state.processing   = true;
+        state.processError = null;
       })
-      .addCase(fetchPreviewThunk.fulfilled, (state, action) => {
-        state.previewLoading = false;
-        state.previewRows = action.payload;
+      .addCase(pollJobStatusThunk.fulfilled, (state, action) => {
+        state.processing  = false;
+        state.previewRows = action.payload.preview_data ?? [];
       })
-      .addCase(fetchPreviewThunk.rejected, (state, action) => {
-        state.previewLoading = false;
-        state.previewError = action.payload as string;
+      .addCase(pollJobStatusThunk.rejected, (state, action) => {
+        state.processing   = false;
+        state.processError = action.payload as string;
       });
-
-    // list
+    builder
+      .addCase(saveRecordsThunk.pending, (state) => {
+        state.saving    = true;
+        state.saveError = null;
+        state.savedCount = null;
+      })
+      .addCase(saveRecordsThunk.fulfilled, (state, action) => {
+        state.saving     = false;
+        state.savedCount = action.payload.records_saved;
+      })
+      .addCase(saveRecordsThunk.rejected, (state, action) => {
+        state.saving    = false;
+        state.saveError = action.payload as string;
+      });
     builder
       .addCase(fetchDocumentsThunk.pending, (state) => {
         state.documentsLoading = true;
-        state.documentsError = null;
+        state.documentsError   = null;
       })
       .addCase(fetchDocumentsThunk.fulfilled, (state, action) => {
         state.documentsLoading = false;
-        state.documents = action.payload;
+        state.documents        = action.payload;
       })
       .addCase(fetchDocumentsThunk.rejected, (state, action) => {
         state.documentsLoading = false;
-        state.documentsError = action.payload as string;
+        state.documentsError   = action.payload as string;
       });
   },
 });
 
-export const { resetUpload, clearUploadError } = documentSlice.actions;
+export const { resetUpload, clearUploadError, updatePreviewRows } = documentSlice.actions;
 export default documentSlice.reducer;

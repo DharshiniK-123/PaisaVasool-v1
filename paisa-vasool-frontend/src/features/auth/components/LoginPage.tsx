@@ -10,34 +10,27 @@ export default function LoginPage() {
   const [touched, setTouched] = useState({ email: false, password: false });
 
   useEffect(() => { clearError(); }, []);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   };
-
   const handleBlur = (field: keyof typeof touched) => {
     setTouched(t => ({ ...t, [field]: true }));
   };
-
   const errors = {
     email:    !form.email.includes('@') && touched.email    ? 'Enter a valid email address' : '',
     password: form.password.length < 6  && touched.password ? 'Password must be at least 6 characters' : '',
   };
-
   const isValid = form.email.includes('@') && form.password.length >= 6;
-
   const fieldState = (field: 'email' | 'password') => {
     if (errors[field]) return 'field-error';
     if (form[field] && touched[field]) return 'field-valid';
     return '';
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
     await login({ email: form.email, password: form.password });
   };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.875rem' }}>
       <div className="animate-slide-up stagger-1">
@@ -54,16 +47,13 @@ export default function LoginPage() {
           Sign in to your<br />account
         </h2>
       </div>
-
       {error && (
         <div className="banner banner-error animate-slide-up">
           <span className="banner-icon">⚠</span>
           <p>{error}</p>
         </div>
       )}
-
       <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
         <div className="animate-slide-up stagger-2" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label htmlFor="login-email" className="field-label">Email</label>
           <div className={`field-wrap ${fieldState('email')}`}>
@@ -86,9 +76,7 @@ export default function LoginPage() {
             <span className="field-error-msg"><span>⚠</span> {errors.email}</span>
           )}
         </div>
-
         <div className="animate-slide-up stagger-3" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          
           <div className={`field-wrap ${fieldState('password')}`}>
             <input
               id="login-password"
@@ -115,7 +103,6 @@ export default function LoginPage() {
             <span className="field-error-msg"><span>⚠</span> {errors.password}</span>
           )}
         </div>
-
         <div className="animate-slide-up stagger-4" style={{ paddingTop: '0.375rem' }}>
           <button type="submit" className="btn-primary" disabled={isLoading || !isValid}>
             {isLoading ? (
@@ -127,11 +114,9 @@ export default function LoginPage() {
           </button>
         </div>
       </form>
-
       <div className="auth-divider animate-slide-up stagger-5">
         <span>or</span>
       </div>
-
       <p className="animate-slide-up stagger-6" style={{
         textAlign: 'center', fontSize: '0.825rem', color: 'var(--color-muted)',
       }}>

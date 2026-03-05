@@ -3,8 +3,6 @@ import { matchingService } from '../services/matchingService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { MatchingState } from '../types/Match';
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
-
 export const fetchMatchesThunk = createAsyncThunk(
   'matching/fetchMatches',
   async (_, { rejectWithValue }) => {
@@ -38,7 +36,6 @@ export const fetchUnmatchedInvoicesThunk = createAsyncThunk(
   }
 );
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState: MatchingState = {
   matches: [],
@@ -63,7 +60,6 @@ const matchingSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // fetchMatches
     builder
       .addCase(fetchMatchesThunk.pending, (state) => {
         if (!state.refreshing) state.loading = true;
@@ -79,8 +75,6 @@ const matchingSlice = createSlice({
         state.refreshing = false;
         state.error = action.payload as string;
       });
-
-    // fetchUnmatchedPayments
     builder
       .addCase(fetchUnmatchedPaymentsThunk.pending, (state) => {
         state.unmatchedPaymentsLoading = true;
@@ -92,8 +86,6 @@ const matchingSlice = createSlice({
       .addCase(fetchUnmatchedPaymentsThunk.rejected, (state) => {
         state.unmatchedPaymentsLoading = false;
       });
-
-    // fetchUnmatchedInvoices
     builder
       .addCase(fetchUnmatchedInvoicesThunk.pending, (state) => {
         state.unmatchedInvoicesLoading = true;

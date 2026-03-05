@@ -8,8 +8,6 @@ import {
   setRefreshing,
 } from '../slices/reminderSlice';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type ReminderStatus = 'SENT' | 'FAILED' | 'PENDING';
 
 type Reminder = {
@@ -18,7 +16,6 @@ type Reminder = {
   customer_id?: number | null;
   customer_name?: string | null;
   customer_email?: string | null;
-  message?: string | null;
   status?: ReminderStatus | string | null;
   sent_at?: string | null;
   error_message?: string | null;
@@ -28,7 +25,6 @@ type Reminder = {
   [key: string]: unknown;
 };
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
 
 const IconBell = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -103,18 +99,15 @@ const IconChevronDown = () => (
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
-const IconMessageSquare = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  </svg>
-);
+
 const IconZap = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
   </svg>
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return (
@@ -150,7 +143,8 @@ function timeAgo(str?: string | null) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// ─── Status config ────────────────────────────────────────────────────────────
+
+
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string; border: string }> = {
   SENT:    { label: 'Sent',    icon: <IconCheck />,         bg: 'rgba(52,211,153,0.1)',  text: '#34d399', border: 'rgba(52,211,153,0.25)'  },
@@ -197,7 +191,8 @@ function SeverityBadge({ severity }: { severity?: string | null }) {
   );
 }
 
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
+
+
 
 function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: () => void }) {
   const statusKey = (reminder.status ?? 'PENDING').toString().toUpperCase();
@@ -230,8 +225,6 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
         boxShadow: '-12px 0 48px rgba(0,0,0,0.55)',
         animation: 'slideInRight 0.3s var(--ease-out-expo) both',
       }}>
-
-        {/* Header */}
         <div style={{
           padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)',
           background: 'var(--color-surface-2)',
@@ -265,11 +258,7 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
             <IconClose />
           </button>
         </div>
-
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-          {/* Status hero */}
           <div style={{
             background: 'linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))',
             border: `1px solid ${cfg.border}`,
@@ -296,8 +285,6 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
               )}
             </div>
           </div>
-
-          {/* Failed error box */}
           {statusKey === 'FAILED' && reminder.error_message && (
             <div className="banner banner-error animate-fade-in">
               <span className="banner-icon">⚠</span>
@@ -307,8 +294,6 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
               </div>
             </div>
           )}
-
-          {/* Details */}
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
               Details
@@ -324,27 +309,6 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
               {reminder.days_overdue != null && <Row icon={<IconCalendar />} label="Days Over" value={`${reminder.days_overdue} days`} />}
             </div>
           </section>
-
-          {/* Message */}
-          {reminder.message && (
-            <section>
-              <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
-                Message Sent
-              </p>
-              <div style={{
-                background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
-                borderRadius: 10, padding: '1rem',
-                display: 'flex', gap: '0.75rem',
-              }}>
-                <div style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: '0.1rem' }}>
-                  <IconMessageSquare />
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--color-text)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {reminder.message}
-                </p>
-              </div>
-            </section>
-          )}
         </div>
       </div>
       <style>{`
@@ -353,8 +317,6 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
     </>
   );
 }
-
-// ─── Run Job Confirm Modal ────────────────────────────────────────────────────
 
 function RunJobModal({ onConfirm, onCancel, running }: {
   onConfirm: () => void; onCancel: () => void; running: boolean;
@@ -411,9 +373,6 @@ function RunJobModal({ onConfirm, onCancel, running }: {
     </>
   );
 }
-
-// ─── Main Reminders Page ──────────────────────────────────────────────────────
-
 const ALL_STATUSES: ReminderStatus[] = ['SENT', 'FAILED', 'PENDING'];
 
 export default function RemindersPage() {
@@ -427,8 +386,6 @@ export default function RemindersPage() {
   const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => { dispatch(fetchRemindersThunk()); }, [dispatch]);
-
-  // Auto-clear jobSuccess after 5 seconds
   useEffect(() => {
     if (!jobSuccess) return;
     const t = setTimeout(() => dispatch(clearJobSuccess()), 5000);
@@ -452,14 +409,11 @@ export default function RemindersPage() {
       return next;
     });
   };
-
-  // Counts per status
   const counts = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = reminders.filter(r => (r.status ?? 'PENDING').toString().toUpperCase() === s).length;
     return acc;
   }, {} as Record<ReminderStatus, number>);
 
-  // Filter + search + sort
   const filtered = reminders
     .filter(r => {
       const statusKey = (r.status ?? 'PENDING').toString().toUpperCase() as ReminderStatus;
@@ -470,8 +424,7 @@ export default function RemindersPage() {
           String(r.id).includes(s) ||
           (r.customer_name ?? '').toLowerCase().includes(s) ||
           (r.customer_email ?? '').toLowerCase().includes(s) ||
-          String(r.invoice_id ?? '').includes(s) ||
-          (r.message ?? '').toLowerCase().includes(s)
+          String(r.invoice_id ?? '').includes(s)
         );
       }
       return true;
@@ -482,7 +435,6 @@ export default function RemindersPage() {
       return sortDir === 'desc' ? tb - ta : ta - tb;
     });
 
-  // Summary stats
   const sentCount    = counts.SENT ?? 0;
   const failedCount  = counts.FAILED ?? 0;
   const pendingCount = counts.PENDING ?? 0;
@@ -501,7 +453,6 @@ export default function RemindersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1100 }}>
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', marginBottom: '0.35rem' }}>
@@ -547,7 +498,6 @@ export default function RemindersPage() {
         </div>
       </div>
 
-      {/* Banners */}
       {error && (
         <div className="banner banner-error animate-fade-in">
           <span className="banner-icon">⚠</span>
@@ -560,7 +510,6 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {/* Summary strip */}
       {!loading && reminders.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.625rem' }}>
           {[
@@ -582,7 +531,6 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {/* Delivery rate bar */}
       {!loading && reminders.length > 0 && (
         <div style={{
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -616,9 +564,8 @@ export default function RemindersPage() {
         </div>
       )}
 
-      {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {/* Search */}
+       
         <div style={{
           display: 'flex', alignItems: 'center', gap: '0.5rem',
           background: 'var(--color-surface)', border: '1px solid var(--color-border)',
@@ -626,7 +573,7 @@ export default function RemindersPage() {
         }}>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}><IconSearch /></span>
           <input
-            type="text" placeholder="Search customer, invoice, message…" value={search}
+            type="text" placeholder="Search customer, invoice" value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--color-text)', fontSize: '0.78rem', fontFamily: 'Outfit, sans-serif', flex: 1, minWidth: 0 }}
           />
@@ -725,7 +672,6 @@ export default function RemindersPage() {
                   <th style={thStyle}>Invoice</th>
                   <th style={thStyle}>Severity</th>
                   <th style={thStyle}>Days Over</th>
-                  <th style={thStyle}>Message Preview</th>
                   <th style={thStyle}>Sent</th>
                 </tr>
               </thead>
@@ -770,14 +716,7 @@ export default function RemindersPage() {
                           : <span style={{ color: 'var(--color-faint)', fontSize: '0.72rem' }}>—</span>
                         }
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', maxWidth: 220 }}>
-                        {r.message
-                          ? <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {r.message}
-                            </p>
-                          : <span style={{ color: 'var(--color-faint)', fontSize: '0.72rem' }}>—</span>
-                        }
-                      </td>
+                      
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
                         {r.sent_at ? (
                           <div>

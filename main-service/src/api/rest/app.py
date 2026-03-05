@@ -11,9 +11,11 @@ setup_logging()
 
 app = FastAPI(title="Paisa Vasool API Gateway")
 
+
 app.add_middleware(BaseHTTPMiddleware, dispatch=logging_middleware)
 
 setup_cors(app)
+
 
 app.include_router(auth_router)
 app.include_router(payment_intake_matching_router)

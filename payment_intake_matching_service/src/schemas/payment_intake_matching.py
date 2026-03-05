@@ -108,9 +108,10 @@ class AgingConfigCreate(BaseModel):
     due_days_from      : Optional[int] = Field(None, ge=0)
     due_days_to        : Optional[int] = Field(None, ge=1)
     reminder_frequency : Optional[int] = Field(None, ge=1)
-    is_active          : bool
+    is_active          : bool=True
     run_hour           : Optional[int] = Field(None, ge=0, le=23)
     run_minute         : Optional[int] = Field(None, ge=0, le=59)
+    message_template   : Optional[str] = None
 
 
 class AgingConfigUpdate(BaseModel):
@@ -132,7 +133,7 @@ class AgingConfigResponse(BaseModel):
     is_active          : bool
     run_hour           : Optional[int]
     run_minute         : Optional[int]
-
+    message_template   : Optional[str] = None
     model_config = {"from_attributes": True}
 
 class ReminderLogCreate(BaseModel):
