@@ -1,12 +1,14 @@
 import asyncio
 import json
 from src.data.clients.redis_clients import redis_client
-from src.core.services.document import extract_document_data
+
 
 PREVIEW_TTL = 600   
 JOB_TTL     = 3600  
 
 def process_document_task(document_id: int,storage_path: str,file_type: str,file_url: str,document_type: str,job_id: str,) -> None:
+    
+    from src.core.services.document import extract_document_data
     redis_client.setex(f"job:{job_id}",JOB_TTL,json.dumps({"status": "PROCESSING", "document_id": document_id}),)
     try:
         extracted_records = asyncio.run(
