@@ -82,7 +82,6 @@ const IconChevronRight = () => (
   </svg>
 );
 
-
 const NAV_ITEMS = [
   { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: <IconDashboard /> },
   { label: 'Upload',    to: ROUTES.UPLOAD,    icon: <IconUpload /> },
@@ -101,24 +100,21 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   [ROUTES.REMINDERS]: { title: 'Reminders',         subtitle: 'Aging reminders and notification log' },
 };
 
-const SEVERITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'SCHEDULER'] as const;
+const SEVERITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH'] as const;
 type Severity = typeof SEVERITY_OPTIONS[number];
 
 const SEVERITY_STYLE: Record<Severity, { bg: string; text: string; border: string }> = {
-  LOW:       { bg: 'rgba(52,211,153,0.1)',   text: '#34d399', border: 'rgba(52,211,153,0.25)'  },
-  MEDIUM:    { bg: 'rgba(251,191,36,0.1)',   text: '#fbbf24', border: 'rgba(251,191,36,0.25)'  },
-  HIGH:      { bg: 'rgba(248,113,113,0.1)',  text: '#f87171', border: 'rgba(248,113,113,0.25)' },
-  SCHEDULER: { bg: 'rgba(139,92,246,0.1)',   text: '#a78bfa', border: 'rgba(139,92,246,0.25)'  },
+  LOW:    { bg: 'rgba(22,163,74,0.08)',   text: '#15803d', border: 'rgba(22,163,74,0.2)'   },
+  MEDIUM: { bg: 'rgba(234,179,8,0.08)',   text: '#a16207', border: 'rgba(234,179,8,0.2)'   },
+  HIGH:   { bg: 'rgba(239,68,68,0.08)',   text: '#b91c1c', border: 'rgba(239,68,68,0.2)'   },
 };
-
 
 type AgingRule = {
   id: number;
   due_days_from: number;
   due_days_to: number | null;
   severity: string;
-  run_hour: number | null;
-  run_minute: number | null;
+  reminder_frequency: number | null;
   message_template: string;
 };
 
@@ -126,11 +122,15 @@ type FormState = {
   due_days_from: string;
   due_days_to: string;
   severity: Severity;
-  run_hour: string;
-  run_minute: string;
+  reminder_frequency: string;
   message_template: string;
 };
 
+type SchedulerSettings = {
+  run_hour: number;
+  run_minute: number;
+  is_enabled: boolean;
+};
 
 function SeverityBadge({ severity }: { severity: string }) {
   const s = SEVERITY_STYLE[severity as Severity] ?? SEVERITY_STYLE.LOW;
@@ -156,24 +156,27 @@ function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; 
   );
 }
 
-
 function SettingsDrawer({ onClose }: { onClose: () => void }) {
-  const [rules, setRules]     = useState<AgingRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [rules, setRules]       = useState<AgingRule[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState('');
-  const [form, setForm]       = useState<FormState>({
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+  const [form, setForm]         = useState<FormState>({
     due_days_from: '', due_days_to: '', severity: 'MEDIUM',
-    run_hour: '', run_minute: '', message_template: '',
+    reminder_frequency: '', message_template: '',
   });
 
-  const BASE = '/api/v1/payment_intake_matching/aging-config';
+  const [scheduler, setScheduler]               = useState<SchedulerSettings>({ run_hour: 9, run_minute: 0, is_enabled: true });
+  const [schedulerLoading, setSchedulerLoading] = useState(true);
+  const [savingScheduler, setSavingScheduler]   = useState(false);
+
+  const BASE      = '/api/v1/payment_intake_matching/aging-config';
+  const SCHED_URL = '/api/v1/payment_intake_matching/scheduler/settings';
 
   const fetchRules = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       const res = await axiosInstance.get<AgingRule[]>(BASE + '/');
       setRules(Array.isArray(res.data) ? res.data : []);
@@ -183,7 +186,19 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
       setLoading(false);
     }
   };
-  useEffect(() => { fetchRules(); }, []);
+
+  const fetchScheduler = async () => {
+    setSchedulerLoading(true);
+    try {
+      const res = await axiosInstance.get<SchedulerSettings>(SCHED_URL);
+      setScheduler(res.data);
+    } catch {
+    } finally {
+      setSchedulerLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRules(); fetchScheduler(); }, []);
 
   const flash = (msg: string, type: 'success' | 'error') => {
     if (type === 'success') { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); }
@@ -192,27 +207,38 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
 
   const handleAdd = async () => {
     if (!form.due_days_from) return flash('Days From is required', 'error');
-    if (form.severity === 'SCHEDULER' && !form.run_hour) return flash('Run hour is required for SCHEDULER', 'error');
-
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
-        due_days_from:    Number(form.due_days_from),
-        severity:         form.severity,
-        message_template: form.message_template.trim(),
+        due_days_from: Number(form.due_days_from),
+        severity:      form.severity,
+        is_active:     true,
       };
-      if (form.due_days_to) body.due_days_to = Number(form.due_days_to);
-      if (form.run_hour)    body.run_hour    = Number(form.run_hour);
-      if (form.run_minute)  body.run_minute  = Number(form.run_minute);
+      if (form.due_days_to)        body.due_days_to        = Number(form.due_days_to);
+      if (form.reminder_frequency) body.reminder_frequency = Number(form.reminder_frequency);
+      if (form.message_template)   body.message_template   = form.message_template.trim();
       await axiosInstance.post(BASE + '/', body);
-
       flash('Aging rule added successfully', 'success');
-      setForm({ due_days_from: '', due_days_to: '', severity: 'MEDIUM', run_hour: '', run_minute: '', message_template: '' });
+      setForm({ due_days_from: '', due_days_to: '', severity: 'MEDIUM', reminder_frequency: '', message_template: '' });
       fetchRules();
-    } catch {
-      flash('Failed to add rule', 'error');
+    } catch (err: any) {
+      flash(err?.response?.data?.detail ?? 'Failed to add rule', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveScheduler = async () => {
+    setSavingScheduler(true);
+    try {
+      await axiosInstance.put(
+        `${SCHED_URL}?run_hour=${scheduler.run_hour}&run_minute=${scheduler.run_minute}&is_enabled=${scheduler.is_enabled}`
+      );
+      flash('Scheduler updated successfully', 'success');
+    } catch {
+      flash('Failed to update scheduler', 'error');
+    } finally {
+      setSavingScheduler(false);
     }
   };
 
@@ -230,10 +256,10 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', background: 'var(--color-surface-2)',
+    width: '100%', background: 'var(--color-surface)',
     border: '1px solid var(--color-border)', borderRadius: 8,
     padding: '0.625rem 0.75rem', color: 'var(--color-text)',
-    fontSize: '0.8rem', fontFamily: 'Outfit, sans-serif', outline: 'none',
+    fontSize: '0.8rem', fontFamily: "'DM Sans', sans-serif", outline: 'none',
     transition: 'border-color 0.2s',
   };
   const labelStyle: React.CSSProperties = {
@@ -247,7 +273,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)',
           backdropFilter: 'blur(3px)', zIndex: 40,
           animation: 'fadeIn 0.2s ease both',
         }}
@@ -258,7 +284,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
         background: 'var(--color-surface)',
         borderLeft: '1px solid var(--color-border)',
         zIndex: 50, display: 'flex', flexDirection: 'column',
-        boxShadow: '-12px 0 48px rgba(0,0,0,0.55)',
+        boxShadow: '-12px 0 48px rgba(15,40,90,0.12)',
         animation: 'slideInRight 0.32s var(--ease-out-expo) both',
       }}>
         <div style={{
@@ -271,7 +297,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             <div style={{
               width: 34, height: 34, borderRadius: 9,
               background: 'var(--color-accent-soft)',
-              border: '1px solid rgba(52,211,153,0.2)',
+              border: '1px solid rgba(37,99,235,0.15)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--color-accent)',
             }}>
@@ -301,6 +327,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             <IconClose />
           </button>
         </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {error && (
             <div className="banner banner-error animate-fade-in">
@@ -312,6 +339,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
               <span className="banner-icon">✓</span><p>{success}</p>
             </div>
           )}
+
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)' }}>
@@ -321,7 +349,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                 <span style={{
                   padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.65rem',
                   background: 'var(--color-accent-soft)', color: 'var(--color-accent)',
-                  border: '1px solid rgba(52,211,153,0.2)', fontWeight: 600,
+                  border: '1px solid rgba(37,99,235,0.15)', fontWeight: 600,
                 }}>
                   {rules.length}
                 </span>
@@ -334,7 +362,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             ) : rules.length === 0 ? (
               <div style={{
                 padding: '1.75rem', border: '1px dashed var(--color-border)',
-                borderRadius: 12, textAlign: 'center',
+                borderRadius: 12, textAlign: 'center', background: 'var(--color-surface-2)',
               }}>
                 <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem' }}>No aging rules yet</p>
                 <p style={{ color: 'var(--color-faint)', fontSize: '0.72rem', marginTop: '0.3rem' }}>Add your first rule below</p>
@@ -350,10 +378,10 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                       borderRadius: 10, padding: '0.875rem 1rem',
                       display: 'flex', alignItems: 'flex-start',
                       justifyContent: 'space-between', gap: '0.75rem',
-                      transition: 'border-color 0.2s',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
                     }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border-hover)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border-hover)'; el.style.boxShadow = 'var(--shadow-sm)'; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.boxShadow = 'none'; }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.45rem', flexWrap: 'wrap' }}>
@@ -372,12 +400,10 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                           {rule.message_template}
                         </p>
                       )}
-                      {rule.severity === 'SCHEDULER' && rule.run_hour != null && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.4rem' }}>
-                          <span style={{ fontSize: '0.65rem', color: '#a78bfa' }}>
-                             Runs daily at {String(rule.run_hour).padStart(2, '0')}:{String(rule.run_minute ?? 0).padStart(2, '0')}
-                          </span>
-                        </div>
+                      {rule.reminder_frequency && (
+                        <p style={{ fontSize: '0.65rem', color: 'var(--color-faint)', marginTop: '0.4rem' }}>
+                          Remind every {rule.reminder_frequency} days
+                        </p>
                       )}
                     </div>
                     <button
@@ -389,10 +415,10 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                         color: 'var(--color-muted)', display: 'flex',
                         alignItems: 'center', flexShrink: 0, transition: 'all 0.15s',
                       }}
-                      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(248,113,113,0.3)'; el.style.color = '#f87171'; el.style.background = 'rgba(248,113,113,0.07)'; }}
+                      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(239,68,68,0.25)'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.06)'; }}
                       onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'transparent'; el.style.color = 'var(--color-muted)'; el.style.background = 'none'; }}
                     >
-                      {deleting === rule.id ? <Spinner size={13} color="#f87171" /> : <IconTrash />}
+                      {deleting === rule.id ? <Spinner size={13} color="#ef4444" /> : <IconTrash />}
                     </button>
                   </div>
                 ))}
@@ -401,11 +427,11 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
           </section>
 
           <div style={{ height: 1, background: 'linear-gradient(to right, transparent, var(--color-border), transparent)' }} />
+
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '1rem' }}>
               Add New Rule
             </p>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
@@ -429,6 +455,18 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                   />
                 </div>
               </div>
+
+              <div>
+                <label style={labelStyle}>Remind every (days) <span style={{ opacity: 0.5 }}>(optional)</span></label>
+                <input
+                  type="number" min="1" placeholder="e.g. 7"
+                  style={inputStyle} value={form.reminder_frequency}
+                  onChange={e => setForm(f => ({ ...f, reminder_frequency: e.target.value }))}
+                  onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'var(--color-border-focus)'}
+                  onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'var(--color-border)'}
+                />
+              </div>
+
               <div>
                 <label style={labelStyle}>Severity *</label>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -443,7 +481,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                           padding: '0.35rem 0.85rem', borderRadius: 99,
                           fontSize: '0.67rem', fontWeight: 600,
                           letterSpacing: '0.08em', textTransform: 'uppercase',
-                          cursor: 'pointer', fontFamily: 'Outfit, sans-serif',
+                          cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                           border: active ? `1px solid ${ss.border}` : '1px solid var(--color-border)',
                           background: active ? ss.bg : 'transparent',
                           color: active ? ss.text : 'var(--color-muted)',
@@ -457,42 +495,80 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {form.severity === 'SCHEDULER' && (
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem',
-                  padding: '0.875rem', background: 'rgba(139,92,246,0.05)',
-                  border: '1px solid rgba(139,92,246,0.15)', borderRadius: 10,
-                  animation: 'fadeSlideUp 0.2s var(--ease-out-expo) both',
-                }}>
-                  <div>
-                    <label style={{ ...labelStyle, color: '#a78bfa' }}>Run Hour (0–23) *</label>
-                    <input
-                      type="number" min="0" max="23" placeholder="e.g. 9"
-                      style={{ ...inputStyle, borderColor: 'rgba(139,92,246,0.2)' }}
-                      value={form.run_hour}
-                      onChange={e => setForm(f => ({ ...f, run_hour: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, color: '#a78bfa' }}>Run Minute (0–59)</label>
-                    <input
-                      type="number" min="0" max="59" placeholder="e.g. 0"
-                      style={{ ...inputStyle, borderColor: 'rgba(139,92,246,0.2)' }}
-                      value={form.run_minute}
-                      onChange={e => setForm(f => ({ ...f, run_minute: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
               <button
-                onClick={handleAdd}
-                disabled={saving}
+                onClick={handleAdd} disabled={saving}
                 className="btn-primary"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
-                {saving ? <Spinner size={15} color="#000" /> : <IconPlus />}
+                {saving ? <Spinner size={15} color="#fff" /> : <IconPlus />}
                 {saving ? 'Adding Rule...' : 'Add Aging Rule'}
               </button>
+            </div>
+          </section>
+
+          <div style={{ height: 1, background: 'linear-gradient(to right, transparent, var(--color-border), transparent)' }} />
+
+          <section>
+            <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '1rem' }}>
+              Daily Schedule (IST)
+            </p>
+            <div style={{
+              padding: '1rem', background: 'rgba(37,99,235,0.04)',
+              border: '1px solid rgba(37,99,235,0.12)', borderRadius: 10,
+              display: 'flex', flexDirection: 'column', gap: '0.875rem',
+            }}>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-accent)' }}>
+                Set the time (IST) when reminders are automatically sent every day.
+              </p>
+              {schedulerLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}><Spinner /></div>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ ...labelStyle, color: 'var(--color-accent)' }}>Hour IST (0–23)</label>
+                      <input
+                        type="number" min="0" max="23" placeholder="e.g. 9"
+                        style={{ ...inputStyle, borderColor: 'rgba(37,99,235,0.2)' }}
+                        value={scheduler.run_hour}
+                        onChange={e => setScheduler(s => ({ ...s, run_hour: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, color: 'var(--color-accent)' }}>Minute (0–59)</label>
+                      <input
+                        type="number" min="0" max="59" placeholder="e.g. 0"
+                        style={{ ...inputStyle, borderColor: 'rgba(37,99,235,0.2)' }}
+                        value={scheduler.run_minute}
+                        onChange={e => setScheduler(s => ({ ...s, run_minute: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="checkbox" id="sched-enabled"
+                      checked={scheduler.is_enabled}
+                      onChange={e => setScheduler(s => ({ ...s, is_enabled: e.target.checked }))}
+                    />
+                    <label htmlFor="sched-enabled" style={{ fontSize: '0.75rem', color: 'var(--color-muted)', cursor: 'pointer' }}>
+                      Enable automatic daily reminders
+                    </label>
+                  </div>
+                  <button
+                    onClick={handleSaveScheduler} disabled={savingScheduler}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      padding: '0.625rem', borderRadius: 8, cursor: 'pointer',
+                      background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)',
+                      color: 'var(--color-accent)', fontSize: '0.78rem', fontWeight: 600,
+                      fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s',
+                    }}
+                  >
+                    {savingScheduler ? <Spinner size={14} color="var(--color-accent)" /> : '🕐'}
+                    {savingScheduler ? 'Saving...' : `Save — runs daily at ${String(scheduler.run_hour).padStart(2,'0')}:${String(scheduler.run_minute).padStart(2,'0')} IST`}
+                  </button>
+                </>
+              )}
             </div>
           </section>
         </div>
@@ -531,6 +607,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         transition: 'width 0.3s var(--ease-out-expo)',
         position: 'fixed', top: 0, left: 0, bottom: 0,
         zIndex: 30, overflow: 'hidden', flexShrink: 0,
+        boxShadow: '1px 0 0 var(--color-border)',
       }}>
         <div style={{
           padding: collapsed ? '0 0' : '0 1.125rem',
@@ -538,16 +615,16 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           display: 'flex', alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
           gap: '0.5rem', flexShrink: 0,
+          background: 'var(--color-surface)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
             <div style={{
               width: 32, height: 32, flexShrink: 0, borderRadius: 9,
-              background: 'var(--color-surface-2)',
-              border: '1px solid rgba(52,211,153,0.28)',
-              boxShadow: '0 0 14px rgba(52,211,153,0.1)',
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
             }}>
-              <span className="font-display" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>₹</span>
+              <span className="font-display" style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', lineHeight: 1 }}>₹</span>
             </div>
             {!collapsed && (
               <span className="font-display" style={{
@@ -594,6 +671,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             <IconChevronRight />
           </button>
         )}
+
         <nav style={{
           flex: 1, padding: '0.75rem 0.5rem',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',
@@ -610,10 +688,10 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 borderRadius: 9, textDecoration: 'none', cursor: 'pointer',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 fontSize: '0.82rem', fontWeight: isActive ? 600 : 400,
-                fontFamily: 'Outfit, sans-serif',
+                fontFamily: "'DM Sans', sans-serif",
                 color: isActive ? 'var(--color-accent)' : 'var(--color-muted)',
                 background: isActive ? 'var(--color-accent-soft)' : 'transparent',
-                border: isActive ? '1px solid rgba(52,211,153,0.15)' : '1px solid transparent',
+                border: isActive ? '1px solid rgba(37,99,235,0.12)' : '1px solid transparent',
                 transition: 'all 0.18s var(--ease-in-out)',
                 whiteSpace: 'nowrap', overflow: 'hidden',
               })}
@@ -629,7 +707,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
           borderTop: '1px solid var(--color-border)',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',
         }}>
-
           {!collapsed && user && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '0.6rem',
@@ -640,8 +717,8 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             }}>
               <div style={{
                 width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                background: 'rgba(52,211,153,0.12)',
-                border: '1px solid rgba(52,211,153,0.22)',
+                background: 'rgba(37,99,235,0.1)',
+                border: '1px solid rgba(37,99,235,0.18)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-accent)' }}>
@@ -670,11 +747,11 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
               borderRadius: 9, cursor: 'pointer',
               border: '1px solid transparent', background: 'transparent',
               color: 'var(--color-muted)', fontSize: '0.82rem',
-              fontWeight: 400, fontFamily: 'Outfit, sans-serif',
+              fontWeight: 400, fontFamily: "'DM Sans', sans-serif",
               transition: 'all 0.18s', justifyContent: collapsed ? 'center' : 'flex-start',
               whiteSpace: 'nowrap', overflow: 'hidden', width: '100%',
             }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(255,255,255,0.03)'; el.style.color = 'var(--color-text)'; el.style.borderColor = 'var(--color-border)'; }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-surface-2)'; el.style.color = 'var(--color-text)'; el.style.borderColor = 'var(--color-border)'; }}
             onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.color = 'var(--color-muted)'; el.style.borderColor = 'transparent'; }}
           >
             <span style={{ flexShrink: 0, display: 'flex' }}><IconSettings /></span>
@@ -690,11 +767,11 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
               borderRadius: 9, cursor: 'pointer',
               border: '1px solid transparent', background: 'transparent',
               color: 'var(--color-muted)', fontSize: '0.82rem',
-              fontWeight: 400, fontFamily: 'Outfit, sans-serif',
+              fontWeight: 400, fontFamily: "'DM Sans', sans-serif",
               transition: 'all 0.18s', justifyContent: collapsed ? 'center' : 'flex-start',
               whiteSpace: 'nowrap', width: '100%',
             }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#f87171'; el.style.borderColor = 'rgba(248,113,113,0.15)'; el.style.background = 'rgba(248,113,113,0.05)'; }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#ef4444'; el.style.borderColor = 'rgba(239,68,68,0.12)'; el.style.background = 'rgba(239,68,68,0.05)'; }}
             onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--color-muted)'; el.style.borderColor = 'transparent'; el.style.background = 'transparent'; }}
           >
             <span style={{ flexShrink: 0, display: 'flex' }}><IconLogout /></span>
@@ -728,7 +805,7 @@ function TopBar() {
         </p>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', display: 'none' }} className="sm:block">
+        <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>
           {dateStr}
         </span>
         <div className="session-badge">
@@ -750,16 +827,7 @@ export default function AppLayout() {
   const SIDEBAR_W = collapsed ? 60 : 220;
 
   return (
-    <div
-      className="noise-overlay"
-      style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}
-    >
-      <div style={{
-        position: 'fixed', top: 0, left: 0, width: 350, height: 350,
-        pointerEvents: 'none', zIndex: 0,
-        background: 'radial-gradient(ellipse at 0% 0%, rgba(52,211,153,0.04), transparent 70%)',
-      }} />
-
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
       <div style={{
         marginLeft: SIDEBAR_W,

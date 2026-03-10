@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +10,7 @@ from src.data.models.postgres.customer import Customer
 from src.data.repositories.generic_repository import (insert_instance,get_instance_by_any,update_instance_by_id,)
 from src.core.services.storage_service import save_file_locally
 from src.core.services.extraction_service import extract_text
-from src.control.extraction.Llm_extractor import run_extraction, run_extraction_batch
+from src.control.extraction.Llm_extractor import run_extraction
 from src.core.services.matching_service import run_matching_for_payment
 from src.data.clients.postgres_client import AsyncSessionLocal
 from rq import Queue
@@ -73,6 +75,7 @@ async def extract_document_data(document_id: int,storage_path: str,file_type: st
                 records = await _extract_single(extracted, document_type)
             elif file_type in ("csv", "xlsx", "xls"):
                 records = await _extract_dataframe(extracted, document_type)
+                
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported file type: {file_type}")
 
@@ -113,20 +116,25 @@ async def save_document_records( document_id: int, document_type: str, records: 
 
 
 async def _extract_single(raw_text: str, document_type: str) -> list[dict]:
-    data = await run_extraction(raw_text, document_type)
-    return [data]
-
+    records = await run_extraction(raw_text, document_type)
+    return [records]
 
 async def _extract_dataframe(df: pd.DataFrame, document_type: str) -> list[dict]:
-    df_text = df.to_string(index=False)
-    return await run_extraction_batch(df_text, document_type)
+    records = []
 
+    for row in df.to_dict(orient="records"):
+        text = json.dumps(row)
+        result = await run_extraction(text, document_type)
+        records.append(result)
 
+    return records
 async def _resolve_customer(
     name: str | None,
     email: str | None,
     db: AsyncSession,
 ) -> int:
+    
+    print(".......................resolve customer................",name,"..........",email,".............")
     if not email or str(email).lower() == "null":
         raise HTTPException(
             status_code=422,

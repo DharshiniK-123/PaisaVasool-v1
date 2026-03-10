@@ -20,6 +20,7 @@ def process_document_task(document_id: int,storage_path: str,file_type: str,file
                 document_type=document_type,
             )
         )
+        print("FINAL RECORDS BEFORE REDIS:", extracted_records)
         redis_client.setex(f"preview:{document_id}",PREVIEW_TTL,json.dumps(extracted_records),)
         redis_client.setex(f"job:{job_id}",JOB_TTL,
                 json.dumps({

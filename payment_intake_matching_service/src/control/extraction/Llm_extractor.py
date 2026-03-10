@@ -86,7 +86,10 @@ async def _extract_from_text(raw_text: str, document_type: str) -> dict:
             parsed = None
         _check_mismatch(parsed, document_type)
         structured_llm = llm.with_structured_output(schema)
+        print("my extracted data:  .................................................................",structured_llm)
         result = await structured_llm.ainvoke(prompt.format(raw_text=raw_text))
+        print("STRUCTURED RESULT:", result)
+        print("STRUCTURED DICT:", result.model_dump())
         return result.model_dump()
 
     except HTTPException:
@@ -124,6 +127,7 @@ async def _extract_from_image(image_content: dict, document_type: str) -> dict:
         try:
             raw    = response.content.strip().strip("```json").strip("```").strip()
             parsed = json.loads(raw)
+            print("Extracted from image:" ,parsed)
         except Exception:
             raise HTTPException(status_code=422,detail="Could not read the document. ""Please ensure the image is clear and try again.")
         _check_mismatch(parsed, document_type)
@@ -150,28 +154,3 @@ async def run_extraction(content: str | dict, document_type: str) -> dict:
         _handle_llm_error(e, document_type)
 
 
-async def run_extraction_batch(text: str, document_type: str) -> list[dict]:
-    try:
-        llm = get_llm()
-        prompt = f"""
-            Extract ALL rows from this {document_type} data and return a JSON array.
-            Each element should have the same fields as a single {document_type} record.
-            Return ONLY a JSON array, no explanation.
-            Data:
-            {text}
-            """
-        response = await llm.ainvoke(prompt)
-        try:
-            clean  = re.sub(r"```json|```", "", response.content).strip()
-            parsed = json.loads(clean)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=422,detail="Could not parse the batch document. ""Please check the file format and try again.")
-        if not isinstance(parsed, list):
-            raise HTTPException(status_code=422,detail="Unexpected format in batch document. ""Please ensure each row is a valid record and try again.")
-        if not parsed:
-            raise HTTPException(status_code=422,detail="No records could be extracted from the document. ""Please check the file content and try again.")
-        return parsed
-    except HTTPException:
-        raise
-    except Exception as e:
-        _handle_llm_error(e, document_type)

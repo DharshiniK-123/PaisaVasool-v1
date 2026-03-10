@@ -115,7 +115,57 @@ async def get_unmatched_invoices(
     except Exception:
         raise HTTPException(status_code=500, detail="Could not fetch unmatched invoices. Please try again.")
 
-@router.get("/dashboard/recent", response_model=list[MatchingResponse])
+@router.get("/invoice-detail/{invoice_id}")
+async def get_invoice_detail(invoice_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(
+            select(
+                InvoiceData,
+                Customer.name.label("customer_name"),
+                Customer.email.label("customer_email"),
+            )
+            .join(Customer, InvoiceData.customer_id == Customer.id, isouter=True)
+            .where(InvoiceData.id == invoice_id)
+        )
+        row = result.first()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found.")
+        data = {k: v for k, v in row.InvoiceData.__dict__.items() if not k.startswith("_")}
+        data["customer_name"]  = row.customer_name
+        data["customer_email"] = row.customer_email
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not fetch invoice detail: {str(e)}")
+
+
+@router.get("/payment-detail/{payment_id}")
+async def get_payment_detail(payment_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(
+            select(
+                PaymentDetail,
+                Customer.name.label("payer_name"),
+                Customer.email.label("payer_email"),
+            )
+            .join(Customer, PaymentDetail.customer_id == Customer.id, isouter=True)
+            .where(PaymentDetail.id == payment_id)
+        )
+        row = result.first()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Payment {payment_id} not found.")
+        data = {k: v for k, v in row.PaymentDetail.__dict__.items() if not k.startswith("_")}
+        data["payer_name"]  = row.payer_name
+        data["payer_email"] = row.payer_email
+        data["amount"]      = data.pop("payment_amount", None)
+        data["payment_date"] = data.pop("paid_date", None)
+        data["reference_number"] = data.pop("payment_reference", None)
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not fetch payment detail: {str(e)}")
 async def get_recent_matches(limit: int = 20, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     try:
         if limit <= 0 or limit > 100:
@@ -134,10 +184,7 @@ async def get_discrepancies(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    """
-    Returns all FAILED and DUPLICATE matches with their reason,
-    joined with payment + customer info for the dashboard panel.
-    """
+    
     try:
         result = await db.execute(
             select(

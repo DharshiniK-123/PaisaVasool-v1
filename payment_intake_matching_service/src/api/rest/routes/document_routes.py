@@ -4,8 +4,9 @@ from typing import Literal, List
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select ,and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from src.data.models.postgres.customer import Customer
 from src.api.rest.dependencies import get_db, get_current_user
@@ -56,6 +57,7 @@ async def get_job_status(job_id: str,user: dict = Depends(get_current_user),):
                 "status":  "PROCESSING",
                 "message": "Document is being processed. Please check back shortly.",
             }
+        print(data,"..........................................")
         return {"job_id": job_id, **json.loads(data)}
     except Exception:
         raise HTTPException(status_code=500, detail="Could not fetch job status.")
@@ -67,31 +69,83 @@ class SaveRecordsRequest(BaseModel):
 
 
 @router.post("/{document_id}/save")
-async def save_records(document_id: int,body: SaveRecordsRequest,db: AsyncSession = Depends(get_db),user: dict = Depends(get_current_user),):
+async def save_records(
+    document_id: int,
+    body: SaveRecordsRequest,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
     try:
         doc = await get_instance_by_id(document_id, Document, db)
+
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found.")
+
         if not body.records:
-            raise HTTPException(status_code=400, detail="No records provided to save.")
+            raise HTTPException(status_code=400, detail="No records provided.")
+        for record in body.records:
+
+            invoice_no = record.get("invoice_no")
+            payment_reference = record.get("payment_reference")
+
+            if invoice_no and payment_reference:
+                result = await db.execute(
+                    select(PaymentDetail).where(
+                        and_(
+                            PaymentDetail.invoice_no == invoice_no,
+                            PaymentDetail.payment_reference == payment_reference
+                        )
+                    )
+                )
+
+                if result.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Duplicate payment detected for invoice {invoice_no} with reference {payment_reference}."
+                    )
+            invoice_number = record.get("invoice_number")
+
+            if invoice_number:
+                result = await db.execute(
+                    select(InvoiceData).where(
+                        InvoiceData.invoice_number == invoice_number
+                    )
+                )
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Invoice {invoice_number} already exists."
+                    )
+
         count = await save_document_records(
             document_id=document_id,
             document_type=body.document_type,
             records=body.records,
             db=db,
         )
+
         return {
-            "document_id":   document_id,
-            "status":        "PARSED",
+            "document_id": document_id,
+            "status": "PARSED",
             "records_saved": count,
-            "message":       "Records saved successfully.",
+            "message": "Records saved successfully.",
         }
+
     except HTTPException:
         raise
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Duplicate payment detected. This payment already exists."
+        )
     except Exception as e:
-        import traceback; traceback.print_exc()
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Could not save the document")
     
+
 @router.get("/")
 async def list_documents(
     db: AsyncSession = Depends(get_db),

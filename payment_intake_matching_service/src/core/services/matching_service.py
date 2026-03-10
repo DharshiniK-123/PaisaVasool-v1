@@ -23,18 +23,31 @@ async def _get_already_matched_amount(invoice_id: int, db: AsyncSession) -> Deci
     )
     return Decimal(str(result.scalar()))
 
-
 async def _is_duplicate(payment_id: int, invoice_id: int, db: AsyncSession) -> bool:
+
     result = await db.execute(
         select(MatchingPaymentInvoice).where(
             and_(
                 MatchingPaymentInvoice.payment_detail_id == payment_id,
-                MatchingPaymentInvoice.invoice_id        == invoice_id,
+                MatchingPaymentInvoice.invoice_id == invoice_id,
                 MatchingPaymentInvoice.match_status.in_(["FULL", "PARTIAL"]),
             )
         )
     )
-    return result.scalar_one_or_none() is not None
+
+    rows = result.scalars().all()
+
+    print("Duplicate check rows:")
+    for row in rows:
+        print(
+            "id:", row.id,
+            "payment_detail_id:", row.payment_detail_id,
+            "invoice_id:", row.invoice_id,
+            "status:", row.match_status,
+            "matched_amount:", row.matched_amount
+        )
+
+    return len(rows) > 0
 
 
 async def _update_invoice_status(invoice_id: int, db: AsyncSession) -> None:
@@ -104,6 +117,7 @@ async def run_matching_for_payment(payment_id: int, db: AsyncSession) -> list:
         )
     )
     candidates = candidates_result.scalars().all()
+    print("candidates......................",candidates)
 
     if not candidates:
         await _save_failed_match(
