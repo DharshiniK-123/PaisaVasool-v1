@@ -54,7 +54,7 @@ export const verifyAuthThunk = createAsyncThunk(
 );
 
 interface AuthState {
-  user: { id: string; email: string; first_name?: string; last_name?: string } | null;
+  user: { id: string; email: string; role: string; first_name?: string; last_name?: string } | null;
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -101,6 +101,7 @@ const authSlice = createSlice({
         state.user = {
           id: action.payload.user_id,
           email: action.payload.email,
+          role: action.payload.role ?? 'finance_associate',
         };
       })
       .addCase(loginThunk.rejected, (state, action) => {
@@ -140,7 +141,10 @@ const authSlice = createSlice({
         state.isVerifying = false;
         state.isAuthenticated = true;
         state.accessToken = action.payload.accessToken;
-        state.user = action.payload.user;
+        state.user = {
+          ...action.payload.user,
+          role: action.payload.user.role ?? 'finance_associate',
+        };
       })
       .addCase(verifyAuthThunk.rejected, (state) => {
         state.isVerifying = false;

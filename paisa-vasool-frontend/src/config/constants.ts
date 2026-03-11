@@ -8,6 +8,8 @@ export const ROUTES = {
   INVOICES:  '/invoices',
   PAYMENTS:  '/payments',
   REMINDERS: '/reminders',
+  ADMIN_DASHBOARD: '/admin/dashboard',
+  ADMIN_USERS:     '/admin/users',
 } as const;
 
 export const AUTH_COOKIE_KEYS = {

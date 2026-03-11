@@ -5,25 +5,52 @@ import { ROUTES } from '../config/constants';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import AuthLayout from '../layout/AuthLayout';
 import AppLayout from '../layout/AppLayout';
+import AdminLayout from '../layout/AdminLayout';
 import { LoginPage, RegisterPage } from '../features/auth';
 
-const DashboardPage  = lazy(() => import('../features/dashboard/components/DashboardPage'));
-const UploadPage     = lazy(() => import('../features/documents/components/UploadPage'));
-const MatchingPage   = lazy(() => import('../features/matching/components/MatchingPage'));
-const InvoicesPage   = lazy(() => import('../features/invoices/components/InvoiceTable'));
-const PaymentsPage   = lazy(() => import('../features/payments/components/PaymentTable'));
-const RemindersPage  = lazy(() => import('../features/reminders/components/ReminderPage'));
+const DashboardPage      = lazy(() => import('../features/dashboard/components/DashboardPage'));
+const UploadPage         = lazy(() => import('../features/documents/components/UploadPage'));
+const MatchingPage       = lazy(() => import('../features/matching/components/MatchingPage'));
+const InvoicesPage       = lazy(() => import('../features/invoices/components/InvoiceTable'));
+const PaymentsPage       = lazy(() => import('../features/payments/components/PaymentTable'));
+const RemindersPage      = lazy(() => import('../features/reminders/components/ReminderPage'));
+const UserManagementPage = lazy(() => import('../features/admin/components/UserManagementPage'));
+
+function useAuthState() {
+  return useAppSelector(s => s.auth as {
+    isAuthenticated: boolean;
+    isVerifying: boolean;
+    user: { role?: string } | null;
+  });
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isVerifying } = useAppSelector(s => s.auth as { isAuthenticated: boolean; isVerifying: boolean });
+  const { isAuthenticated, isVerifying } = useAuthState();
   if (isVerifying) return <LoadingSpinner fullScreen />;
   return isAuthenticated ? <>{children}</> : <Navigate to={ROUTES.LOGIN} replace />;
 }
 
-function GuestRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isVerifying } = useAppSelector(s => s.auth as { isAuthenticated: boolean; isVerifying: boolean });
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isVerifying, user } = useAuthState();
   if (isVerifying) return <LoadingSpinner fullScreen />;
-  return !isAuthenticated ? <>{children}</> : <Navigate to={ROUTES.DASHBOARD} replace />;
+  if (!isAuthenticated) return <Navigate to={ROUTES.LOGIN} replace />;
+  if (user?.role !== 'admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
+  return <>{children}</>;
+}
+
+function FinanceRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isVerifying, user } = useAuthState();
+  if (isVerifying) return <LoadingSpinner fullScreen />;
+  if (!isAuthenticated) return <Navigate to={ROUTES.LOGIN} replace />;
+  if (user?.role === 'admin') return <Navigate to={ROUTES.ADMIN_DASHBOARD} replace />;
+  return <>{children}</>;
+}
+
+function GuestRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isVerifying, user } = useAuthState();
+  if (isVerifying) return <LoadingSpinner fullScreen />;
+  if (!isAuthenticated) return <>{children}</>;
+  return <Navigate to={user?.role === 'admin' ? ROUTES.ADMIN_DASHBOARD : ROUTES.DASHBOARD} replace />;
 }
 
 export default function AppRoutes() {
@@ -31,11 +58,13 @@ export default function AppRoutes() {
     <Suspense fallback={<LoadingSpinner fullScreen />}>
       <Routes>
         <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
+
         <Route element={<AuthLayout />}>
           <Route path={ROUTES.LOGIN}    element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path={ROUTES.REGISTER} element={<GuestRoute><RegisterPage /></GuestRoute>} />
         </Route>
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+
+        <Route element={<FinanceRoute><AppLayout /></FinanceRoute>}>
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.UPLOAD}    element={<UploadPage />} />
           <Route path={ROUTES.MATCHING}  element={<MatchingPage />} />
@@ -43,6 +72,12 @@ export default function AppRoutes() {
           <Route path={ROUTES.PAYMENTS}  element={<PaymentsPage />} />
           <Route path={ROUTES.REMINDERS} element={<RemindersPage />} />
         </Route>
+
+        <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+          <Route path={ROUTES.ADMIN_DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.ADMIN_USERS}     element={<UserManagementPage />} />
+        </Route>
+
         <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
       </Routes>
     </Suspense>

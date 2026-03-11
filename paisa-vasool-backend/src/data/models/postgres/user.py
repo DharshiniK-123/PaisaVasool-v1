@@ -10,4 +10,5 @@ class User(base):
     phone_no = Column(String(15), nullable=False, unique=True)
     email = Column(String(100), nullable=False, unique=True)   
     password = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="finance_associate")
     created_at = Column(DateTime(timezone=True), default=func.now())

@@ -151,7 +151,6 @@ volumes:
   redis_data:
   uploads_data:
 
-# ✅ define the shared network
 networks:
   paisa-network:
     driver: bridge

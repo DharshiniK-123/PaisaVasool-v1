@@ -1,5 +1,5 @@
 from datetime import datetime,timezone
-from sqlalchemy import UUID
+from sqlalchemy import UUID, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.hashing import get_password_hashed
 from src.utils.uuid import to_uuid
@@ -8,10 +8,11 @@ from src.data.repositories.generic_repository import commit_transaction, get_ins
 from src.data.models.postgres.user import User
 
 
-async def create_user(db : AsyncSession,user_data):
+async def create_user(db : AsyncSession,user_data, role: str = "finance_associate"):
     hashed_password = get_password_hashed(user_data.password)
     user_dict = user_data.model_dump()
     user_dict["password"] = hashed_password
+    user_dict["role"] = role
     await insert_instance(db=db , model=User , **user_dict)
         
 
@@ -22,6 +23,12 @@ async def get_user(email : str , db : AsyncSession):
 async def get_user_by_phone(phone_no : str , db : AsyncSession):
     user = await get_instance_by_any(db = db , model = User,data = {"phone_no":phone_no})
     return user
+
+async def get_all_users(db: AsyncSession):
+    result = await db.execute(
+        select(User).where(User.role == "finance_associate").order_by(User.created_at.desc())
+    )
+    return result.scalars().all()
 
 async def is_revoked(jti: str ,db : AsyncSession):
     jti=to_uuid(jti)

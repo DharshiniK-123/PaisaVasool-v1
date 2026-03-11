@@ -8,7 +8,7 @@ DATABASE_URL=(f"postgresql+psycopg://{settings.DB_USER}:{settings.DB_PASSWORD}@{
 
 engine=create_async_engine(DATABASE_URL)
 
-AsyncSessionLocal=async_sessionmaker(bind=engine,class_=AsyncSession,autoflush=False)
+AsyncSessionLocal=async_sessionmaker(bind=engine,class_=AsyncSession,autoflush=False,expire_on_commit=False)
 
 base=declarative_base()
 
