@@ -14,6 +14,8 @@ export interface Reminder {
   severity?: string | null;
   days_overdue?: number | null;
   [key: string]: unknown;
+  subject?: string | null;
+  body?: string | null;
 }
 
 export interface ReminderState {

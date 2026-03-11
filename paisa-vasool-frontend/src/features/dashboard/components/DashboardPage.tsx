@@ -13,7 +13,7 @@ import {
 import axiosInstance from '../../../lib/axios';
 
 
-type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'DUPLICATE' | 'FAILED';
+type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT'  | 'FAILED';
 
 type MatchRecord = {
   id: number;
@@ -48,7 +48,6 @@ type DashboardSummary = {
   FULL: MatchRecord[];
   PARTIAL: MatchRecord[];
   OVERPAYMENT: MatchRecord[];
-  DUPLICATE: MatchRecord[];
   FAILED: MatchRecord[];
 };
 
@@ -82,11 +81,7 @@ const IconOver = () => (
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
   </svg>
 );
-const IconDuplicate = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-  </svg>
-);
+
 const IconFailed = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -175,7 +170,6 @@ const STATUS_CONFIG: Record<MatchStatus, {
   FULL:        { label: 'Fully Paid',    icon: <IconCheck />,     bg: 'rgba(52,211,153,0.1)',   text: '#34d399', border: 'rgba(52,211,153,0.25)',   glow: 'rgba(52,211,153,0.08)'   },
   PARTIAL:     { label: 'Partial',       icon: <IconPartial />,   bg: 'rgba(251,191,36,0.1)',   text: '#fbbf24', border: 'rgba(251,191,36,0.25)',   glow: 'rgba(251,191,36,0.06)'   },
   OVERPAYMENT: { label: 'Overpayment',   icon: <IconOver />,      bg: 'rgba(139,92,246,0.1)',   text: '#a78bfa', border: 'rgba(139,92,246,0.25)',   glow: 'rgba(139,92,246,0.06)'   },
-  DUPLICATE:   { label: 'Duplicate',     icon: <IconDuplicate />, bg: 'rgba(251,146,60,0.1)',   text: '#fb923c', border: 'rgba(251,146,60,0.25)',   glow: 'rgba(251,146,60,0.06)'   },
   FAILED:      { label: 'Failed',        icon: <IconFailed />,    bg: 'rgba(248,113,113,0.1)',  text: '#f87171', border: 'rgba(248,113,113,0.25)',  glow: 'rgba(248,113,113,0.06)'  },
 };
 
@@ -224,13 +218,7 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
       amount: summary?.OVERPAYMENT.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0,
       icon: <IconOver />,
     },
-    {
-      key: 'DUPLICATE' as MatchStatus,
-      label: 'Duplicate',
-      count: summary?.DUPLICATE.length ?? 0,
-      amount: 0,
-      icon: <IconDuplicate />,
-    },
+    
     {
       key: 'FAILED' as MatchStatus,
       label: 'Failed',
@@ -715,7 +703,7 @@ function DiscrepanciesPanel() {
               Discrepancies
             </p>
             <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>
-              Failed &amp; duplicate matches requiring manual review
+              Failed matches requiring manual review
             </p>
           </div>
         </div>

@@ -57,7 +57,6 @@ async def get_job_status(job_id: str,user: dict = Depends(get_current_user),):
                 "status":  "PROCESSING",
                 "message": "Document is being processed. Please check back shortly.",
             }
-        print(data,"..........................................")
         return {"job_id": job_id, **json.loads(data)}
     except Exception:
         raise HTTPException(status_code=500, detail="Could not fetch job status.")
@@ -69,12 +68,7 @@ class SaveRecordsRequest(BaseModel):
 
 
 @router.post("/{document_id}/save")
-async def save_records(
-    document_id: int,
-    body: SaveRecordsRequest,
-    db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
-):
+async def save_records(document_id: int,body: SaveRecordsRequest,db: AsyncSession = Depends(get_db),user: dict = Depends(get_current_user),):
     try:
         doc = await get_instance_by_id(document_id, Document, db)
 
@@ -84,40 +78,43 @@ async def save_records(
         if not body.records:
             raise HTTPException(status_code=400, detail="No records provided.")
         for record in body.records:
+            if body.document_type == "PAYMENT":
+                invoice_no = record.get("invoice_no")
+                payment_reference = record.get("payment_reference")
 
-            invoice_no = record.get("invoice_no")
-            payment_reference = record.get("payment_reference")
-
-            if invoice_no and payment_reference:
-                result = await db.execute(
-                    select(PaymentDetail).where(
-                        and_(
-                            PaymentDetail.invoice_no == invoice_no,
-                            PaymentDetail.payment_reference == payment_reference
+                if invoice_no and payment_reference:
+                    result = await db.execute(
+                        select(PaymentDetail).where(
+                            and_(
+                                PaymentDetail.payment_reference == payment_reference,
+                                PaymentDetail.is_deleted.is_(False)
+                            )
                         )
                     )
-                )
 
-                if result.scalar_one_or_none():
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Duplicate payment detected for invoice {invoice_no} with reference {payment_reference}."
-                    )
-            invoice_number = record.get("invoice_number")
+                    if result.scalar_one_or_none():
+                        raise HTTPException(
+                            status_code=409,
+                            detail=f"Duplicate payment detected for invoice {invoice_no} with reference {payment_reference}."
+                        )
+            if body.document_type == "INVOICE":
+                invoice_number = record.get("invoice_number")
 
-            if invoice_number:
-                result = await db.execute(
-                    select(InvoiceData).where(
-                        InvoiceData.invoice_number == invoice_number
+                if invoice_number:
+                    result = await db.execute(
+                        select(InvoiceData).where(
+                            InvoiceData.invoice_number == invoice_number,
+                            InvoiceData.is_deleted.is_(False)
+                        )
                     )
-                )
-                existing = result.scalar_one_or_none()
 
-                if existing:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Invoice {invoice_number} already exists."
-                    )
+                    existing = result.scalars().first()
+
+                    if existing:
+                        raise HTTPException(
+                            status_code=409,
+                            detail=f"Invoice {invoice_number} already exists."
+                        )
 
         count = await save_document_records(
             document_id=document_id,
@@ -143,7 +140,7 @@ async def save_records(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Could not save the document")
+        raise HTTPException(status_code=500, detail=str(e))
     
 
 @router.get("/")
@@ -184,7 +181,7 @@ async def get_document_invoices(
         result = await db.execute(
             select(InvoiceData, Customer.name.label("customer_name"), Customer.email.label("customer_email"))
             .join(Customer, InvoiceData.customer_id == Customer.id, isouter=True)
-            .where(InvoiceData.document_id == document_id)
+            .where(InvoiceData.document_id == document_id , InvoiceData.is_deleted == False)
         )
         rows = result.all()
         if not rows:
@@ -213,7 +210,7 @@ async def get_document_payments(
                 Customer.phone.label("payer_phone"),
             )
             .join(Customer, PaymentDetail.customer_id == Customer.id, isouter=True)
-            .where(PaymentDetail.document_id == document_id)
+            .where(PaymentDetail.document_id == document_id ,PaymentDetail.is_deleted == False)
         )
         rows = result.mappings().all()
         if not rows:
@@ -223,3 +220,34 @@ async def get_document_payments(
         raise
     except Exception:
         raise HTTPException(status_code=500, detail="Could not fetch payments.")
+    
+@router.delete("/invoices/{invoice_id}")
+async def delete_invoice(invoice_id: int, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    try:
+        result = await db.execute(select(InvoiceData).where(InvoiceData.id == invoice_id))
+        invoice = result.scalar_one_or_none()
+        if not invoice:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found.")
+        invoice.is_deleted = True
+        await db.commit()
+        return {"message": f"Invoice {invoice_id} deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not delete invoice: {str(e)}")
+
+
+@router.delete("/payments/{payment_id}")
+async def delete_payment(payment_id: int, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    try:
+        result = await db.execute(select(PaymentDetail).where(PaymentDetail.id == payment_id))
+        payment = result.scalar_one_or_none()
+        if not payment:
+            raise HTTPException(status_code=404, detail=f"Payment {payment_id} not found.")
+        payment.is_deleted = True
+        await db.commit()
+        return {"message": f"Payment {payment_id} deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not delete payment: {str(e)}")

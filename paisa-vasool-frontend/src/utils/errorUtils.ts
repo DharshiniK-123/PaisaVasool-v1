@@ -4,31 +4,64 @@ export function extractErrorMessage(err: unknown): string {
   const axiosError = err as AxiosError<any>;
 
   if (import.meta.env.DEV) {
-    console.error('[API Error]', axiosError?.response?.status, axiosError?.response?.data);
+    console.error("[API Error]", axiosError);
   }
 
-  const data = axiosError?.response?.data;
-  const status = axiosError?.response?.status;
+  // network error
+  if (!axiosError.response) {
+    return axiosError.message || "Network error. Please try again.";
+  }
 
-  if (!data) return 'Something went wrong. Please try again.';
+  const { data, status } = axiosError.response;
+
+  if (!data) {
+    return "Something went wrong. Please try again.";
+  }
+
+  // FastAPI validation errors
   if (status === 422) {
     const detail = data.detail;
-    if (Array.isArray(detail)) {
-      return detail.map((d: any) => d.msg).join(', ');
-    }
-    if (typeof detail === 'string') {
+
+    if (typeof detail === "string") {
       return detail;
     }
-    return 'Validation error';
+
+    if (Array.isArray(detail)) {
+      return detail.map((d: any) => d.msg || d.message).join(", ");
+    }
+
+    if (typeof detail === "object" && detail.message) {
+      return detail.message;
+    }
+
+    return "Validation error";
   }
 
-  if (typeof data.detail === 'string') return data.detail;
-  if (typeof data.message === 'string') return data.message;
-  if (typeof data.error === 'string') return data.error;
-  if (status === 500) return 'Server error (500). Check the backend logs.';
-  if (status === 413) return 'File is too large to upload.';
-  if (status === 415) return 'Unsupported file type.';
-  if (status === 401) return 'Not authenticated. Please log in again.';
-  if (status === 403) return 'You do not have permission to do that.';
-  return 'Something went wrong. Please try again.';
+  // generic detail
+  if (typeof data.detail === "string") {
+    return data.detail;
+  }
+
+  if (typeof data.message === "string") {
+    return data.message;
+  }
+
+  if (typeof data.error === "string") {
+    return data.error;
+  }
+
+  switch (status) {
+    case 500:
+      return "Server error (500). Check backend logs.";
+    case 413:
+      return "File is too large.";
+    case 415:
+      return "Unsupported file type.";
+    case 401:
+      return "Please login again.";
+    case 403:
+      return "Permission denied.";
+  }
+
+  return "Something went wrong. Please try again.";
 }

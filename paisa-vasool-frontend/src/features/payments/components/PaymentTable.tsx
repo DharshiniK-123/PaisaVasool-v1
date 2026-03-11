@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { usePayments } from '../hooks/usePayments';
+import { paymentService } from '../services/paymentService';
 import type { Payment } from '../types/Payment';
+import Pagination from '../../../components/common/Pagination';
 
 const IconSearch = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
 const IconRefresh = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
@@ -16,7 +18,7 @@ const IconCalendar = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill
 const IconBank = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>);
 const IconMode = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>);
 const IconNote = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>);
-
+const IconTrash = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>);
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
@@ -40,7 +42,7 @@ const MODE_CONFIG: Record<string, { label: string; bg: string; text: string; bor
   IMPS:   { label: 'IMPS',   bg: 'rgba(251,191,36,0.1)',   text: '#fbbf24', border: 'rgba(251,191,36,0.25)'  },
   CHEQUE: { label: 'Cheque', bg: 'rgba(251,146,60,0.1)',   text: '#fb923c', border: 'rgba(251,146,60,0.25)'  },
   CASH:   { label: 'Cash',   bg: 'rgba(52,211,153,0.08)',  text: '#6ee7b7', border: 'rgba(52,211,153,0.2)'   },
-  OTHER:  { label: 'Other',  bg: 'rgba(255,255,255,0.05)', text: 'var(--color-muted)', border: 'var(--color-border)' },
+  OTHER:  { label: 'Other',  bg: 'rgba(100,116,139,0.08)', text: 'var(--color-muted)', border: 'var(--color-border)' },
 };
 
 function ModeBadge({ mode }: { mode?: string | null }) {
@@ -50,8 +52,36 @@ function ModeBadge({ mode }: { mode?: string | null }) {
   return <span style={{ display: 'inline-block', padding: '0.18rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{c.label}</span>;
 }
 
+function DeleteConfirmModal({ label, onConfirm, onCancel, deleting }: {
+  label: string; onConfirm: () => void; onCancel: () => void; deleting: boolean;
+}) {
+  return (
+    <>
+      <div onClick={!deleting ? onCancel : undefined} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)', zIndex: 40, animation: 'fadeIn 0.2s ease both' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: 400, zIndex: 50, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '2rem', boxShadow: 'var(--shadow-lg)', animation: 'popIn 0.25s var(--ease-bounce) both' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+            <IconTrash />
+          </div>
+          <div>
+            <h3 className="font-display" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.5rem' }}>Delete {label}?</h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.65 }}>Do you wnat to delete the payment details?</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', width: '100%' }}>
+            <button onClick={onCancel} disabled={deleting} className="btn-secondary" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
+            <button onClick={onConfirm} disabled={deleting} style={{ padding: '0.75rem', borderRadius: 10, border: 'none', cursor: deleting ? 'not-allowed' : 'pointer', background: '#ef4444', color: '#fff', fontWeight: 600, fontSize: '0.82rem', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: deleting ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+              {deleting ? <Spinner size={14} color="#fff" /> : <IconTrash />}
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => void }) {
-  const KNOWN_KEYS = ['id','payer_name','payer_email','payer_phone','amount','payment_date','reference_number','bank_name','payment_mode','notes','document_id'];
+  const KNOWN_KEYS = ['id','payer_name','payer_email','payer_phone','amount','payment_date','reference_number','bank_name','payment_mode','notes','document_id','customer_id','is_deleted','isdeleted','updated_at','created_at'];
   const Row = ({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: React.ReactNode; accent?: boolean }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.7rem 0', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ color: 'var(--color-muted)', flexShrink: 0, width: 16, display: 'flex', justifyContent: 'center' }}>{icon}</div>
@@ -66,7 +96,7 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
       <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 460, background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 48px rgba(0,0,0,0.55)', animation: 'slideInRight 0.3s var(--ease-out-expo) both' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--color-accent-soft)', border: '1px solid rgba(52,211,153,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}><IconPayment /></div>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--color-accent-soft)', border: '1px solid rgba(37,99,235,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}><IconPayment /></div>
             <div>
               <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-muted)', marginBottom: '0.1rem' }}>Payment Detail</p>
               <h3 className="font-display" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{payment.reference_number ?? `Payment #${payment.id}`}</h3>
@@ -78,7 +108,7 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
           ><IconClose /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))', border: '1px solid rgba(52,211,153,0.15)', borderRadius: 12, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))', border: '1px solid rgba(37,99,235,0.15)', borderRadius: 12, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Amount Received</p>
               <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{formatCurrency(payment.amount)}</p>
@@ -102,7 +132,7 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
               {payment.reference_number && <Row icon={<IconHash />} label="Reference" value={payment.reference_number} />}
               {payment.bank_name && <Row icon={<IconBank />} label="Bank" value={payment.bank_name} />}
               {payment.payment_mode && <Row icon={<IconMode />} label="Mode" value={<ModeBadge mode={payment.payment_mode} />} />}
-              {payment.document_id && <Row icon={<IconHash />} label="Doc ID" value={`#${payment.document_id}`} />}
+
             </div>
           </section>
           {payment.notes && (
@@ -129,15 +159,31 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
   );
 }
 
-
 export default function PaymentTable() {
   const { payments, loading, refreshing, error, refresh, clearError } = usePayments();
 
-  const [selected, setSelected]     = useState<Payment | null>(null);
-  const [search, setSearch]         = useState('');
-  const [modeFilter, setModeFilter] = useState<string | null>(null);
-  const [sortKey, setSortKey]       = useState<'amount' | 'payment_date' | 'id'>('id');
-  const [sortDir, setSortDir]       = useState<'asc' | 'desc'>('desc');
+  const [selected, setSelected]         = useState<Payment | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
+  const [deleting, setDeleting]         = useState(false);
+  const [search, setSearch]             = useState('');
+  const [modeFilter, setModeFilter]     = useState<string | null>(null);
+  const [sortKey, setSortKey]           = useState<'amount' | 'payment_date' | 'id'>('id');
+  const [sortDir, setSortDir]           = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [pageSize, setPageSize]         = useState(25);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await paymentService.delete(deleteTarget.id);
+      refresh();
+      setDeleteTarget(null);
+    } catch {
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const modes = Array.from(new Set(payments.map(p => p.payment_mode?.toUpperCase()).filter(Boolean) as string[]));
 
@@ -163,12 +209,15 @@ export default function PaymentTable() {
       return sortDir === 'desc' ? vb - va : va - vb;
     });
 
+  const filteredTotal = filtered.length;
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const totalReceived = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
   const avgPayment    = payments.length ? totalReceived / payments.length : 0;
   const maxPayment    = payments.reduce((m, p) => Math.max(m, p.amount ?? 0), 0);
 
   const SortTh = ({ col, label }: { col: typeof sortKey; label: string }) => (
-    <th onClick={() => toggleSort(col)} style={{ padding: '0.6rem 1rem', textAlign: 'left', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif', textTransform: 'uppercase', letterSpacing: '0.1em', color: sortKey === col ? 'var(--color-accent)' : 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)', userSelect: 'none', transition: 'color 0.15s' }}>
+    <th onClick={() => toggleSort(col)} style={{ padding: '0.6rem 1rem', textAlign: 'left', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textTransform: 'uppercase', letterSpacing: '0.1em', color: sortKey === col ? 'var(--color-accent)' : 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)', userSelect: 'none', transition: 'color 0.15s' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
         {label}
         {sortKey === col && <span style={{ transform: sortDir === 'asc' ? 'rotate(180deg)' : 'none', display: 'inline-flex', transition: 'transform 0.2s' }}><IconChevronDown /></span>}
@@ -176,7 +225,7 @@ export default function PaymentTable() {
     </th>
   );
 
-  const thStyle: React.CSSProperties = { padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.6rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)' };
+  const thStyle: React.CSSProperties = { padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1200 }}>
@@ -185,8 +234,8 @@ export default function PaymentTable() {
           <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', marginBottom: '0.35rem' }}>Incoming</p>
           <h2 className="font-display" style={{ fontSize: 'clamp(1.375rem, 2.5vw, 1.75rem)', fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Payments</h2>
         </div>
-        <button onClick={refresh} disabled={refreshing || loading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.875rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.72rem', fontFamily: 'Outfit, sans-serif', transition: 'all 0.15s' }}
-          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(52,211,153,0.3)'; el.style.color = 'var(--color-accent)'; }}
+        <button onClick={refresh} disabled={refreshing || loading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.875rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.72rem', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s' }}
+          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(37,99,235,0.3)'; el.style.color = 'var(--color-accent)'; }}
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-muted)'; }}
         >{refreshing ? <Spinner size={13} /> : <IconRefresh />} Refresh</button>
       </div>
@@ -196,8 +245,8 @@ export default function PaymentTable() {
           {[
             { label: 'Total Payments', value: payments.length, color: 'var(--color-text)',  fmt: false },
             { label: 'Total Received', value: totalReceived,   color: 'var(--color-accent)', fmt: true  },
-            { label: 'Avg Payment',    value: avgPayment,       color: '#60a5fa',             fmt: true  },
-            { label: 'Largest',        value: maxPayment,       color: '#a78bfa',             fmt: true  },
+            { label: 'Avg Payment',    value: avgPayment,       color: '#2563eb',             fmt: true  },
+            { label: 'Largest',        value: maxPayment,       color: '#7c3aed',             fmt: true  },
           ].map((s, i) => (
             <div key={s.label} className="stat-card" style={{ animation: `fadeSlideUp 0.4s var(--ease-out-expo) ${i * 0.06}s both` }}>
               <p className="font-display" style={{ fontSize: '1.35rem', fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: '0.3rem' }}>{s.fmt ? formatCurrency(s.value as number) : s.value}</p>
@@ -222,14 +271,14 @@ export default function PaymentTable() {
       {error && (
         <div className="banner banner-error animate-fade-in">
           <span className="banner-icon">⚠</span>
-          <p>{error} — <button onClick={() => { clearError(); refresh(); }} style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'Outfit, sans-serif', fontSize: 'inherit', padding: 0 }}>Retry</button></p>
+          <p>{error} — <button onClick={() => { clearError(); refresh(); }} style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', textDecoration: 'underline', fontFamily: "'DM Sans', sans-serif", fontSize: 'inherit', padding: 0 }}>Retry</button></p>
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '0.55rem 0.875rem', flex: '1 1 200px', maxWidth: 300 }}>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}><IconSearch /></span>
-          <input type="text" placeholder="Search payer, reference, bank…" value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--color-text)', fontSize: '0.78rem', fontFamily: 'Outfit, sans-serif', flex: 1, minWidth: 0 }} />
+          <input type="text" placeholder="Search payer, reference, bank…" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--color-text)', fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif", flex: 1, minWidth: 0 }} />
           {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', padding: 0 }}><IconClose /></button>}
         </div>
         {modes.length > 0 && (
@@ -238,9 +287,9 @@ export default function PaymentTable() {
               const cfg = MODE_CONFIG[m] ?? MODE_CONFIG.OTHER;
               const active = modeFilter === m;
               const cnt = payments.filter(p => (p.payment_mode ?? '').toUpperCase() === m).length;
-              return <button key={m} onClick={() => setModeFilter(active ? null : m)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: 'Outfit, sans-serif', border: active ? `1px solid ${cfg.border}` : '1px solid var(--color-border)', background: active ? cfg.bg : 'transparent', color: active ? cfg.text : 'var(--color-muted)', transition: 'all 0.15s' }}>{cfg.label} <span style={{ opacity: 0.7 }}>({cnt})</span></button>;
+              return <button key={m} onClick={() => setModeFilter(active ? null : m)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif", border: active ? `1px solid ${cfg.border}` : '1px solid var(--color-border)', background: active ? cfg.bg : 'transparent', color: active ? cfg.text : 'var(--color-muted)', transition: 'all 0.15s' }}>{cfg.label} <span style={{ opacity: 0.7 }}>({cnt})</span></button>;
             })}
-            {modeFilter && <button onClick={() => setModeFilter(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.68rem', fontFamily: 'Outfit, sans-serif', textDecoration: 'underline', padding: '0 0.25rem' }}>Clear</button>}
+            {modeFilter && <button onClick={() => setModeFilter(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.68rem', fontFamily: "'DM Sans', sans-serif", textDecoration: 'underline', padding: '0 0.25rem' }}>Clear</button>}
           </div>
         )}
       </div>
@@ -262,11 +311,12 @@ export default function PaymentTable() {
                   <th style={thStyle}>Payer</th>
                   <SortTh col="amount" label="Amount" />
                   <SortTh col="payment_date" label="Date" />
+                  <th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p, i) => (
-                  <tr key={p.id} onClick={() => setSelected(p)} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', transition: 'background 0.15s', animation: `fadeSlideUp 0.3s var(--ease-out-expo) ${Math.min(i, 15) * 0.025}s both` }}
+                {paginated.map((p, i) => (
+                  <tr key={p.id} onClick={() => setSelected(p)} style={{ borderBottom: i < paginated.length - 1 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', transition: 'background 0.15s', animation: `fadeSlideUp 0.3s var(--ease-out-expo) ${Math.min(i, 15) * 0.025}s both` }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                   >
@@ -279,21 +329,43 @@ export default function PaymentTable() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>{formatCurrency(p.amount)}</td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{formatDate(p.payment_date)}</td>
+                    <td style={{ padding: '0.5rem 1rem' }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setDeleteTarget(p)}
+                        title="Delete payment"
+                        style={{ background: 'none', border: '1px solid transparent', borderRadius: 7, padding: '0.35rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(239,68,68,0.25)'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.06)'; }}
+                        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'transparent'; el.style.color = 'var(--color-muted)'; el.style.background = 'none'; }}
+                      >
+                        <IconTrash />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        {!loading && filtered.length > 0 && (
-          <div style={{ padding: '0.625rem 1rem', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{filtered.length} payment{filtered.length !== 1 ? 's' : ''}{(search || modeFilter) && ` (filtered from ${payments.length})`}</p>
-            <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>Click any row to view details</p>
-          </div>
+        {!loading && filteredTotal > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredTotal}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={size => { setPageSize(size); setCurrentPage(1); }}
+          />
         )}
       </div>
 
       {selected && <PaymentDrawer payment={selected} onClose={() => setSelected(null)} />}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          label={`Payment ${deleteTarget.reference_number ?? `#${deleteTarget.id}`}`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
+      )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

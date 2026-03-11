@@ -3,6 +3,8 @@ services:
     image: postgres:15
     container_name: paisa-vasool-db
     restart: always
+    networks:
+      - paisa-network          # ✅ add to every service
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: paisa-vasool
@@ -16,10 +18,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: paisa-vasool-redis
     restart: always
+    networks:
+      - paisa-network
     ports:
       - "6379:6379"
     volumes:
@@ -29,11 +34,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
   auth-service:
     build:
       context: ./paisa-vasool-backend
     container_name: paisa-vasool-auth
     restart: always
+    networks:
+      - paisa-network
     depends_on:
       db:
         condition: service_healthy
@@ -45,11 +53,14 @@ services:
       DB_NAME: paisa-vasool-db
     ports:
       - "8001:8001"
+
   payment-service:
     build:
       context: ./payment_intake_matching_service
     container_name: paisa-vasool-payment
     restart: always
+    networks:
+      - paisa-network
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +84,8 @@ services:
       context: ./payment_intake_matching_service
     container_name: paisa-vasool-rq-worker
     restart: always
+    networks:
+      - paisa-network
     command: rq worker --url redis://redis:6379 default
     depends_on:
       db:
@@ -87,8 +100,8 @@ services:
       DB_NAME: paisa-vasool-db
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      GROQ_API_KEY: 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
-      GOOGLE_API_KEY: AIzaSyBlVP0MtHvwjkAmID5N8F12gggAurX7pek
+      GROQ_API_KEY: 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
+      GOOGLE_API_KEY: AIzaSyBybohD6epnCwTgFpD_CFVRuEItANqRP-g
       JWT_SECRET_KEY: secret_key
       JWT_REFRESH_SECRET_KEY: refresh_secret_key
       JWT_ALGORITHM: HS256
@@ -97,11 +110,14 @@ services:
       BASE_URL: http://payment-service:8002
     volumes:
       - uploads_data:/app/uploads
+
   main-service:
     build:
       context: ./main-service
     container_name: paisa-vasool-main
     restart: always
+    networks:
+      - paisa-network
     depends_on:
       - auth-service
       - payment-service
@@ -121,6 +137,8 @@ services:
       context: ./paisa-vasool-frontend
     container_name: paisa-vasool-frontend
     restart: always
+    networks:
+      - paisa-network
     depends_on:
       - auth-service
       - payment-service
@@ -132,3 +150,8 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+
+# ✅ define the shared network
+networks:
+  paisa-network:
+    driver: bridge

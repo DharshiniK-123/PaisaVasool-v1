@@ -20,4 +20,8 @@ export const invoiceService = {
     );
     return allInvoices;
   },
+
+  async delete(id: number): Promise<void> {
+    await axiosInstance.delete(`${BASE}/documents/invoices/${id}`);
+  },
 };

@@ -20,4 +20,8 @@ export const paymentService = {
     );
     return allPayments;
   },
+
+  async delete(id: number): Promise<void> {
+    await axiosInstance.delete(`${BASE}/documents/payments/${id}`);
+  },
 };
