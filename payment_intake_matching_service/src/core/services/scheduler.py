@@ -36,6 +36,7 @@ async def run_aging_and_reminders():
                         generated += 1
                 except Exception as e:
                     failed += 1
+                    print(f"[AGING] ERROR processing reminder for invoice {item['invoice'].invoice_number}: {e}")
             await db.commit()
 
 

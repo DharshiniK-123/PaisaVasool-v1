@@ -22,7 +22,6 @@ type Reminder = {
   error_message?: string | null;
   aging_config_id?: number | null;
   severity?: string | null;
-  days_overdue?: number | null;
   subject?: string | null;
   body?: string | null;
   [key: string]: unknown;
@@ -271,16 +270,7 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
                 {timeAgo(reminder.sent_at)}
               </p>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              {reminder.days_overdue != null && (
-                <>
-                  <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f87171', lineHeight: 1 }}>
-                    {reminder.days_overdue}
-                  </p>
-                  <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '0.2rem' }}>days overdue</p>
-                </>
-              )}
-            </div>
+            
           </div>
 
           {statusKey === 'FAILED' && reminder.error_message && (
@@ -302,8 +292,7 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
               {reminder.customer_email && <Row icon={<IconMail />}     label="Email"       value={reminder.customer_email} />}
               {reminder.sent_at        && <Row icon={<IconCalendar />} label="Sent At"     value={formatDateTime(reminder.sent_at)} />}
               {reminder.severity       && <Row icon={<IconZap />}      label="Severity"    value={<SeverityBadge severity={reminder.severity} />} />}
-              {reminder.days_overdue != null && <Row icon={<IconCalendar />} label="Days Over" value={`${reminder.days_overdue} days`} />}
-            </div>
+               </div>
           </section>
 
           {reminder.subject && (
@@ -696,7 +685,6 @@ export default function RemindersPage() {
                   <th style={thStyle}>Customer</th>
                   <th style={thStyle}>Invoice</th>
                   <th style={thStyle}>Severity</th>
-                  <th style={thStyle}>Days Over</th>
                   <th style={thStyle}>Sent</th>
                 </tr>
               </thead>
@@ -734,12 +722,7 @@ export default function RemindersPage() {
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <SeverityBadge severity={r.severity} />
                       </td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        {r.days_overdue != null
-                          ? <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{r.days_overdue}d</span>
-                          : <span style={{ color: 'var(--color-faint)', fontSize: '0.72rem' }}>—</span>
-                        }
-                      </td>
+                      
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
                         {r.sent_at ? (
                           <div>

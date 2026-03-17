@@ -601,7 +601,6 @@ function QuickActions() {
   const navigate = useNavigate();
 
   const actions = [
-    { label: 'Upload Document', sub: 'Invoice or payment file', icon: <IconUpload />, to: ROUTES.UPLOAD, accent: true },
     { label: 'View Invoices',   sub: 'All invoice records',     icon: <IconInvoice />, to: ROUTES.INVOICES, accent: false },
     { label: 'View Reminders',  sub: 'Aging notifications',     icon: <IconBell />,   to: ROUTES.REMINDERS, accent: false },
   ];

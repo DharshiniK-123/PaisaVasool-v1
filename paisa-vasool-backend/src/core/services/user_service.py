@@ -57,3 +57,12 @@ async def revoke_refresh_token(jti: str, db):
     await commit_transaction(db=db)
 
     return True
+async def toggle_user_status(user_id: int, db: AsyncSession) -> User | None:
+    from src.data.repositories.generic_repository import update_instance_by_id, get_instance_by_id
+    user = await get_instance_by_id(id=user_id, model=User, db=db)
+    if not user:
+        return None
+    new_status = "inactive" if user.is_active == "active" else "active"
+    await update_instance_by_id(id=user_id, model=User, db=db, is_active=new_status)
+    user.is_active = new_status
+    return user

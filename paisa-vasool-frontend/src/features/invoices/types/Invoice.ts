@@ -1,5 +1,15 @@
 export type PaymentStatus = 'PAID' | 'UNPAID' | 'PARTIAL' | 'OVERPAID';
 
+export interface InvoiceMatch {
+  match_id: number;
+  match_status: string;          // FULL | PARTIAL | OVERPAYMENT | FAILED | DUPLICATE
+  matched_amount?: number | null;
+  amount_pending?: number | null;
+  match_reason?: string | null;
+  payment_detail_id?: number | null;
+  matched_at?: string | null;
+}
+
 export interface Invoice {
   id: number;
   invoice_number?: string | null;
@@ -12,6 +22,7 @@ export interface Invoice {
   invoice_date?: string | null;
   payment_status?: string | null;
   document_id?: number | null;
+  matches?: InvoiceMatch[];        
   [key: string]: unknown;
 }
 

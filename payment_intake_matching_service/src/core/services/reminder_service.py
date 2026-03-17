@@ -1,4 +1,3 @@
-# src/core/services/reminder_service.py
 
 import logging
 from datetime import date, datetime, timedelta, timezone
@@ -14,6 +13,7 @@ from src.data.models.postgres.customer import Customer
 from src.data.models.postgres.aging_config import AgingConfig
 from src.data.models.postgres.reminder_log import ReminderLog
 from src.control.extraction.llm_client import get_llm
+from src.utils.Email_util import send_email
 
 
 async def _get_last_reminder(invoice_id: int, db: AsyncSession) -> ReminderLog | None:
@@ -101,13 +101,12 @@ Return ONLY a valid JSON object with no extra text, no markdown, no explanation:
         parsed   = _safe_json_parse(response.content)
         if not parsed:
             return _fallback_email()
-
         return {
             "subject": parsed.get("subject") or f"Payment Reminder — {invoice.invoice_number}",
             "body":    parsed.get("body") or _fallback_email()["body"],
         }
-
-    except Exception as e:
+    except Exception as llm_exc:
+        print(f"[LLM FAILED] {llm_exc}")
         return _fallback_email()
 
 
@@ -117,11 +116,7 @@ async def process_reminder(
     config: AgingConfig,
     db: AsyncSession,
 ) -> ReminderLog | None:
-    """
-    Generate and flush a ReminderLog for one invoice.
-    Does NOT commit — the caller owns the transaction and commits once
-    after all invoices in the batch are processed.
-    """
+    
     frequency = config.reminder_frequency if config.reminder_frequency else 1
 
     last_reminder = await _get_last_reminder(invoice.id, db)
@@ -135,9 +130,25 @@ async def process_reminder(
     if not customer:
         return None
 
-
+    if not customer.email:
+        return None
     email = await _generate_email(customer, invoice, days_overdue, config.severity)
 
+    status        = "SENT"
+    failure_reason = None
+
+    try:
+        await send_email(
+            to      = customer.email,
+            subject = email["subject"],
+            body    = email["body"],
+        )
+        
+    except Exception as exc:
+        status         = "FAILED"
+        failure_reason = str(exc)
+        print(failure_reason)
+        
     reminder = ReminderLog(
         customer_id = customer.id,
         invoice_id  = invoice.id,
@@ -145,9 +156,9 @@ async def process_reminder(
         subject     = email["subject"],
         body        = email["body"],
         channel     = "EMAIL",
-        status      = "SENT",
-        sent_at     = datetime.now(timezone.utc),
+        status      = status,
+        sent_at     = datetime.now(timezone.utc) if status == "SENT" else None,
     )
     db.add(reminder)
-    await db.flush()   
+    await db.flush()
     return reminder

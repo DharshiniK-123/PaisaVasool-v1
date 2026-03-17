@@ -1,42 +1,42 @@
 import { useState } from 'react';
 import { useInvoices } from '../hooks/useInvoices';
 import { invoiceService } from '../services/invoiceService';
-import type { Invoice, PaymentStatus } from '../types/Invoice';
+import InlineUploadPanel from '../../documents/components/InlineUploadPanel';
+import type { Invoice, InvoiceMatch, PaymentStatus } from '../types/Invoice';
 import Pagination from '../../../components/common/Pagination';
 
-const IconSearch = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
-const IconRefresh = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
-const IconClose = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
-const IconInvoice = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>);
+const IconSearch      = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
+const IconRefresh     = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
+const IconClose       = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
+const IconInvoice     = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>);
 const IconChevronDown = () => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>);
-const IconCalendar = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>);
-const IconUser = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
-const IconMail = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>);
-const IconPhone = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>);
-const IconHash = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>);
-const IconCurrency = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>);
-const IconTrash = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>);
+const IconCalendar    = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>);
+const IconUser        = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
+const IconMail        = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>);
+const IconPhone       = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>);
+const IconHash        = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>);
+const IconCurrency    = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>);
+const IconTrash       = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>);
+const IconCheck       = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>);
+const IconLink        = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>);
+const IconWarning     = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>);
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
 }
-
 function formatCurrency(val?: number | null) {
   if (val == null) return '—';
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 }
-
 function formatDate(str?: string | null) {
   if (!str) return '—';
   const d = new Date(str);
   return isNaN(d.getTime()) ? str : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
 function isOverdue(due?: string | null, status?: string | null) {
   if (!due || status === 'PAID') return false;
   return new Date(due) < new Date();
 }
-
 function daysOverdue(due?: string | null) {
   if (!due) return 0;
   return Math.max(0, Math.floor((Date.now() - new Date(due).getTime()) / 86400000));
@@ -48,13 +48,18 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; b
   PARTIAL:  { label: 'Partial',  bg: 'rgba(251,191,36,0.1)',  text: '#fbbf24', border: 'rgba(251,191,36,0.25)'  },
   OVERPAID: { label: 'Overpaid', bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)'  },
 };
+const MATCH_STATUS_CONFIG = {
+  FULL:        { label: 'Fully Matched',  color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.25)'  },
+  PARTIAL:     { label: 'Partial Match',  color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)'  },
+  OVERPAYMENT: { label: 'Overpayment',    color: '#a78bfa', bg: 'rgba(139,92,246,0.08)',  border: 'rgba(139,92,246,0.25)'  },
+  FAILED:      { label: 'Match Failed',   color: '#f87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)' },
+};
 
 function StatusBadge({ status }: { status?: string | null }) {
   const s = (status ?? 'UNPAID').toUpperCase();
   const c = STATUS_CONFIG[s] ?? STATUS_CONFIG.UNPAID;
   return <span style={{ display: 'inline-block', padding: '0.18rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{c.label}</span>;
 }
-
 function PaymentProgress({ paid, total }: { paid?: number | null; total?: number | null }) {
   if (!total) return <span style={{ color: 'var(--color-faint)', fontSize: '0.7rem' }}>—</span>;
   const pct = Math.min(100, Math.round(((paid ?? 0) / total) * 100));
@@ -69,17 +74,16 @@ function PaymentProgress({ paid, total }: { paid?: number | null; total?: number
   );
 }
 
-function DeleteConfirmModal({ label, onConfirm, onCancel, deleting }: {
-  label: string; onConfirm: () => void; onCancel: () => void; deleting: boolean;
-}) {
+/* ── Inline Upload Panel ─────────────────────────────────── */
+
+/* ── Delete Modal ────────────────────────────────────────── */
+function DeleteConfirmModal({ label, onConfirm, onCancel, deleting }: { label: string; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
   return (
     <>
-      <div onClick={!deleting ? onCancel : undefined} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)', zIndex: 40, animation: 'fadeIn 0.2s ease both' }} />
+      <div onClick={!deleting ? onCancel : undefined} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)', zIndex: 40 }} />
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: 400, zIndex: 50, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '2rem', boxShadow: 'var(--shadow-lg)', animation: 'popIn 0.25s var(--ease-bounce) both' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
-            <IconTrash />
-          </div>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}><IconTrash /></div>
           <div>
             <h3 className="font-display" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.5rem' }}>Delete {label}?</h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.65 }}>Do you want to delete the invoice details?</p>
@@ -97,9 +101,12 @@ function DeleteConfirmModal({ label, onConfirm, onCancel, deleting }: {
   );
 }
 
+/* ── Invoice Drawer (details + matching tabs) ────────────── */
 function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+  const [tab, setTab] = useState<'details' | 'matching'>('details');
   const overdue = isOverdue(invoice.due_date, invoice.payment_status);
   const days = daysOverdue(invoice.due_date);
+  const invoiceMatches: InvoiceMatch[] = invoice.matches ?? [];
 
   const Row = ({ icon, label, value, accent, danger }: { icon: React.ReactNode; label: string; value: React.ReactNode; accent?: boolean; danger?: boolean }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.7rem 0', borderBottom: '1px solid var(--color-border)' }}>
@@ -112,7 +119,8 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', zIndex: 40, animation: 'fadeIn 0.2s ease both' }} />
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 460, background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 48px rgba(0,0,0,0.55)', animation: 'slideInRight 0.3s var(--ease-out-expo) both' }}>
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 480, background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 48px rgba(0,0,0,0.55)', animation: 'slideInRight 0.3s var(--ease-out-expo) both' }}>
+        {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--color-accent-soft)', border: '1px solid rgba(52,211,153,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}><IconInvoice /></div>
@@ -121,59 +129,129 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => 
               <h3 className="font-display" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{invoice.invoice_number ?? `#${invoice.id}`}</h3>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.45rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border-hover)'; el.style.color = 'var(--color-text)'; }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-muted)'; }}
-          ><IconClose /></button>
+          <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.45rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}><IconClose /></button>
         </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)', padding: '0 1.5rem' }}>
+          {(['details', 'matching'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: tab === t ? 700 : 500, fontFamily: "'DM Sans', sans-serif", color: tab === t ? 'var(--color-accent)' : 'var(--color-muted)', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid var(--color-accent)' : '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s', marginBottom: '-1px', whiteSpace: 'nowrap' }}>
+              {t === 'details' ? 'Details' : `Matching${invoiceMatches.length > 0 ? ` (${invoiceMatches.length})` : ''}`}
+            </button>
+          ))}
+        </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {overdue && (
-            <div className="banner banner-error animate-fade-in">
-              <span className="banner-icon">⚠</span>
-              <p>This invoice is <strong>{days} day{days !== 1 ? 's' : ''} overdue</strong>. A reminder should be sent immediately.</p>
-            </div>
-          )}
-          <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1.125rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <StatusBadge status={invoice.payment_status} />
-              <span className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-accent)' }}>{formatCurrency(invoice.total_amount)}</span>
-            </div>
-            {(invoice.paid_amount != null || invoice.total_amount != null) && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Payment progress</span>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(invoice.paid_amount)} of {formatCurrency(invoice.total_amount)}</span>
+          {tab === 'details' && (
+            <>
+              {overdue && (
+                <div className="banner banner-error animate-fade-in">
+                  <span className="banner-icon">⚠</span>
+                  <p>This invoice is <strong>{days} day{days !== 1 ? 's' : ''} overdue</strong>. A reminder should be sent immediately.</p>
                 </div>
-                <PaymentProgress paid={invoice.paid_amount} total={invoice.total_amount} />
+              )}
+              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1.125rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <StatusBadge status={invoice.payment_status} />
+                  <span className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-accent)' }}>{formatCurrency(invoice.total_amount)}</span>
+                </div>
+                {(invoice.paid_amount != null || invoice.total_amount != null) && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Payment progress</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(invoice.paid_amount)} of {formatCurrency(invoice.total_amount)}</span>
+                    </div>
+                    <PaymentProgress paid={invoice.paid_amount} total={invoice.total_amount} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <section>
-            <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>Details</p>
-            <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0 0.875rem' }}>
-              <Row icon={<IconHash />}     label="Invoice #"   value={invoice.invoice_number ?? `#${invoice.id}`} />
-              <Row icon={<IconUser />}     label="Customer"    value={invoice.customer_name ?? '—'} />
-              {invoice.customer_email && <Row icon={<IconMail />}  label="Email"  value={invoice.customer_email} />}
-              {invoice.customer_phone && <Row icon={<IconPhone />} label="Phone"  value={invoice.customer_phone} />}
-              <Row icon={<IconCurrency />} label="Total"       value={formatCurrency(invoice.total_amount)} accent />
-              {invoice.paid_amount != null && <Row icon={<IconCurrency />} label="Paid" value={formatCurrency(invoice.paid_amount)} accent />}
-              <Row icon={<IconCalendar />} label="Invoice Dt"  value={formatDate(invoice.invoice_date)} />
-              <Row icon={<IconCalendar />} label="Due Date"    value={formatDate(invoice.due_date)} danger={overdue} />
-            </div>
-          </section>
-          {Object.entries(invoice).filter(([k]) =>
-            !['id','invoice_number','customer_name','customer_email','customer_phone','total_amount','paid_amount','due_date','invoice_date','payment_status','document_id','customer_id','is_deleted','isdeleted','updated_at','created_at'].includes(k)
-            && invoice[k] != null && String(invoice[k]).trim() !== ''
-          ).length > 0 && (
-            <section>
-              <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>Additional Fields</p>
-              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0 0.875rem' }}>
-                {Object.entries(invoice)
-                  .filter(([k]) => !['id','invoice_number','customer_name','customer_email','customer_phone','total_amount','paid_amount','due_date','invoice_date','payment_status','document_id','customer_id','is_deleted','isdeleted','updated_at','created_at'].includes(k) && invoice[k] != null && String(invoice[k]).trim() !== '')
-                  .map(([k, v]) => <Row key={k} icon={<IconHash />} label={k.replace(/_/g, ' ')} value={String(v)} />)
-                }
-              </div>
-            </section>
+              <section>
+                <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>Details</p>
+                <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0 0.875rem' }}>
+                  <Row icon={<IconHash />}     label="Invoice #"  value={invoice.invoice_number ?? `#${invoice.id}`} />
+                  <Row icon={<IconUser />}     label="Customer"   value={invoice.customer_name ?? '—'} />
+                  {invoice.customer_email && <Row icon={<IconMail />}  label="Email" value={invoice.customer_email} />}
+                  {invoice.customer_phone && <Row icon={<IconPhone />} label="Phone" value={invoice.customer_phone} />}
+                  <Row icon={<IconCurrency />} label="Total"      value={formatCurrency(invoice.total_amount)} accent />
+                  {invoice.paid_amount != null && <Row icon={<IconCurrency />} label="Paid" value={formatCurrency(invoice.paid_amount)} accent />}
+                  <Row icon={<IconCalendar />} label="Invoice Dt" value={formatDate(invoice.invoice_date)} />
+                  <Row icon={<IconCalendar />} label="Due Date"   value={formatDate(invoice.due_date)} danger={overdue} />
+                </div>
+              </section>
+            </>
+          )}
+
+          {tab === 'matching' && (
+            <>
+              {invoiceMatches.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2.5rem 1rem', textAlign: 'center' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)' }}><IconLink /></div>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)' }}>No matches yet</p>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', lineHeight: 1.6, maxWidth: 260 }}>
+                    When payments are matched to this invoice, the results and any discrepancies will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                  {/* Summary stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
+                    {[
+                      { label: 'Matched Amount', value: formatCurrency(invoiceMatches.reduce((s, m) => s + (m.matched_amount ?? 0), 0)), color: 'var(--color-accent)' },
+                      { label: 'Amount Pending', value: formatCurrency(invoiceMatches.reduce((s, m) => s + (m.amount_pending ?? 0), 0)), color: invoiceMatches.some(m => (m.amount_pending ?? 0) > 0) ? '#f87171' : 'var(--color-muted)' },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0.875rem' }}>
+                        <p className="font-display" style={{ fontSize: '1.1rem', fontWeight: 800, color: s.color, marginBottom: '0.25rem' }}>{s.value}</p>
+                        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-muted)' }}>{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Per-match cards */}
+                  {invoiceMatches.map((match, idx) => {
+                    const cfg = MATCH_STATUS_CONFIG[match.match_status as keyof typeof MATCH_STATUS_CONFIG] ?? MATCH_STATUS_CONFIG.FAILED;
+                    const isFull = match.match_status === 'FULL';
+                    const hasPending = (match.amount_pending ?? 0) > 0;
+                    return (
+                      <div key={match.match_id ?? idx} style={{ background: 'var(--color-surface-2)', border: `1px solid ${cfg.border}`, borderRadius: 12, overflow: 'hidden' }}>
+                        {/* Card header */}
+                        <div style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: cfg.bg, borderBottom: `1px solid ${cfg.border}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ color: cfg.color }}><IconLink /></span>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
+                          </div>
+                          {match.payment_detail_id && (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Payment #{match.payment_detail_id}</span>
+                          )}
+                        </div>
+                        {/* Card body */}
+                        <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {/* Matched amount — always shown */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>Matched Amount</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount)}</span>
+                          </div>
+                          {/* Amount pending — shown for non-FULL */}
+                          {!isFull && hasPending && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>Amount Pending</span>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f87171' }}>{formatCurrency(match.amount_pending)}</span>
+                            </div>
+                          )}
+                          {/* Match reason — shown for non-FULL only */}
+                          {!isFull && match.match_reason && (
+                            <div style={{ marginTop: '0.25rem', padding: '0.625rem 0.75rem', borderRadius: 8, background: `${cfg.bg}`, border: `1px solid ${cfg.border}` }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                <span style={{ color: cfg.color, flexShrink: 0, marginTop: '0.1rem' }}><IconWarning /></span>
+                                <p style={{ fontSize: '0.68rem', color: 'var(--color-text)', lineHeight: 1.6 }}>{match.match_reason}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -182,11 +260,11 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: Invoice; onClose: () => 
   );
 }
 
+/* ── Main Component ──────────────────────────────────────── */
 const ALL_STATUSES: PaymentStatus[] = ['PAID', 'UNPAID', 'PARTIAL', 'OVERPAID'];
 
 export default function InvoiceTable() {
   const { invoices, loading, refreshing, error, refresh, clearError } = useInvoices();
-
   const [selected, setSelected]           = useState<Invoice | null>(null);
   const [deleteTarget, setDeleteTarget]   = useState<Invoice | null>(null);
   const [deleting, setDeleting]           = useState(false);
@@ -201,21 +279,13 @@ export default function InvoiceTable() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    try {
-      await invoiceService.delete(deleteTarget.id);
-      refresh();
-      setDeleteTarget(null);
-    } catch {
-    } finally {
-      setDeleting(false);
-    }
+    try { await invoiceService.delete(deleteTarget.id); refresh(); setDeleteTarget(null); }
+    catch { } finally { setDeleting(false); }
   };
-
   const toggleFilter = (s: PaymentStatus) => {
     setActiveFilters(prev => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; });
     setCurrentPage(1);
   };
-
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
@@ -225,17 +295,13 @@ export default function InvoiceTable() {
     acc[s] = invoices.filter(i => (i.payment_status ?? 'UNPAID').toUpperCase() === s).length;
     return acc;
   }, {} as Record<PaymentStatus, number>);
-
   const overdueCount = invoices.filter(i => isOverdue(i.due_date, i.payment_status)).length;
 
   const filtered = invoices
     .filter(i => {
       if (activeFilters.size > 0 && !activeFilters.has((i.payment_status ?? 'UNPAID').toUpperCase() as PaymentStatus)) return false;
       if (overdueOnly && !isOverdue(i.due_date, i.payment_status)) return false;
-      if (search) {
-        const s = search.toLowerCase();
-        return (String(i.id).includes(s) || (i.invoice_number ?? '').toLowerCase().includes(s) || (i.customer_name ?? '').toLowerCase().includes(s) || (i.customer_email ?? '').toLowerCase().includes(s));
-      }
+      if (search) { const s = search.toLowerCase(); return (String(i.id).includes(s) || (i.invoice_number ?? '').toLowerCase().includes(s) || (i.customer_name ?? '').toLowerCase().includes(s) || (i.customer_email ?? '').toLowerCase().includes(s)); }
       return true;
     })
     .sort((a, b) => {
@@ -258,12 +324,9 @@ export default function InvoiceTable() {
       </span>
     </th>
   );
-
   const thStyle: React.CSSProperties = { padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)' };
-
   const totalAmount = invoices.reduce((s, i) => s + (i.total_amount ?? 0), 0);
   const totalPaid   = invoices.reduce((s, i) => s + (i.paid_amount ?? 0), 0);
-  const totalUnpaid = totalAmount - totalPaid;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1200 }}>
@@ -275,19 +338,17 @@ export default function InvoiceTable() {
         <button onClick={refresh} disabled={refreshing || loading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.875rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.72rem', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s' }}
           onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(37,99,235,0.3)'; el.style.color = 'var(--color-accent)'; }}
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-muted)'; }}
-        >
-          {refreshing ? <Spinner size={13} /> : <IconRefresh />} Refresh
-        </button>
+        >{refreshing ? <Spinner size={13} /> : <IconRefresh />} Refresh</button>
       </div>
 
       {!loading && invoices.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.625rem' }}>
           {[
-            { label: 'Total Invoices', value: invoices.length, color: 'var(--color-text)',  fmt: false },
-            { label: 'Total Value',    value: totalAmount,      color: 'var(--color-accent)', fmt: true  },
-            { label: 'Collected',      value: totalPaid,        color: '#16a34a',             fmt: true  },
-            { label: 'Outstanding',    value: totalUnpaid,      color: '#ef4444',             fmt: true  },
-            { label: 'Overdue',        value: overdueCount,     color: '#ca8a04',             fmt: false },
+            { label: 'Total Invoices', value: invoices.length,        color: 'var(--color-text)',   fmt: false },
+            { label: 'Total Value',    value: totalAmount,            color: 'var(--color-accent)', fmt: true  },
+            { label: 'Collected',      value: totalPaid,              color: '#16a34a',             fmt: true  },
+            { label: 'Outstanding',    value: totalAmount - totalPaid, color: '#ef4444',            fmt: true  },
+            { label: 'Overdue',        value: overdueCount,           color: '#ca8a04',             fmt: false },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ animation: 'fadeSlideUp 0.4s var(--ease-out-expo) both' }}>
               <p className="font-display" style={{ fontSize: '1.35rem', fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: '0.3rem' }}>
@@ -298,6 +359,9 @@ export default function InvoiceTable() {
           ))}
         </div>
       )}
+
+      {/* ── Inline Upload ── */}
+      <InlineUploadPanel docType="INVOICE" onSuccess={refresh} />
 
       {error && (
         <div className="banner banner-error animate-fade-in">
@@ -314,8 +378,7 @@ export default function InvoiceTable() {
         </div>
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
           {ALL_STATUSES.map(s => {
-            const cfg = STATUS_CONFIG[s];
-            const active = activeFilters.has(s);
+            const cfg = STATUS_CONFIG[s]; const active = activeFilters.has(s);
             return (
               <button key={s} onClick={() => toggleFilter(s)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif", border: active ? `1px solid ${cfg.border}` : '1px solid var(--color-border)', background: active ? cfg.bg : 'transparent', color: active ? cfg.text : 'var(--color-muted)', transition: 'all 0.15s' }}>
                 {cfg.label} <span style={{ opacity: 0.7 }}>({counts[s]})</span>
@@ -353,7 +416,7 @@ export default function InvoiceTable() {
         ) : filtered.length === 0 ? (
           <div style={{ padding: '4rem', textAlign: 'center' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '0.4rem' }}>{search || activeFilters.size > 0 || overdueOnly ? 'No invoices match your filters' : 'No invoices yet'}</p>
-            <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>{!search && activeFilters.size === 0 && !overdueOnly && 'Upload an invoice document to get started'}</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>{!search && activeFilters.size === 0 && !overdueOnly && 'Use the upload panel above to import invoices'}</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -367,12 +430,15 @@ export default function InvoiceTable() {
                   <th style={thStyle}>Progress</th>
                   <SortTh col="invoice_date" label="Invoice Date" />
                   <SortTh col="due_date" label="Due Date" />
+                  <th style={thStyle}>Matched</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
                 {paginated.map((inv, i) => {
                   const overdue = isOverdue(inv.due_date, inv.payment_status);
+                  const invMatches: InvoiceMatch[] = inv.matches ?? [];
+                  const hasDiscrepancy = invMatches.some((m: InvoiceMatch) => (m.amount_pending ?? 0) > 0 && m.match_status !== 'FULL');
                   return (
                     <tr key={inv.id} onClick={() => setSelected(inv)} style={{ borderBottom: i < paginated.length - 1 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', transition: 'background 0.15s', animation: `fadeSlideUp 0.3s var(--ease-out-expo) ${Math.min(i, 15) * 0.025}s both`, background: overdue ? 'rgba(239,68,68,0.02)' : 'transparent' }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
@@ -388,16 +454,21 @@ export default function InvoiceTable() {
                         <span style={{ fontSize: '0.75rem', color: overdue ? '#ef4444' : 'var(--color-muted)', fontWeight: overdue ? 600 : 400 }}>{formatDate(inv.due_date)}</span>
                         {overdue && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', color: '#ef4444', fontWeight: 700 }}>+{daysOverdue(inv.due_date)}d</span>}
                       </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        {invMatches.length === 0 ? (
+                          <span style={{ fontSize: '0.65rem', color: 'var(--color-faint)' }}>—</span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, background: hasDiscrepancy ? 'rgba(248,113,113,0.08)' : 'rgba(52,211,153,0.08)', color: hasDiscrepancy ? '#f87171' : '#34d399', border: `1px solid ${hasDiscrepancy ? 'rgba(248,113,113,0.25)' : 'rgba(52,211,153,0.25)'}`, whiteSpace: 'nowrap' }}>
+                            {hasDiscrepancy ? <IconWarning /> : <IconCheck />}
+                            {invMatches.length} match{invMatches.length !== 1 ? 'es' : ''}
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: '0.5rem 1rem' }} onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setDeleteTarget(inv)}
-                          title="Delete invoice"
-                          style={{ background: 'none', border: '1px solid transparent', borderRadius: 7, padding: '0.35rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}
+                        <button onClick={() => setDeleteTarget(inv)} title="Delete invoice" style={{ background: 'none', border: '1px solid transparent', borderRadius: 7, padding: '0.35rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}
                           onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(239,68,68,0.25)'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.06)'; }}
                           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'transparent'; el.style.color = 'var(--color-muted)'; el.style.background = 'none'; }}
-                        >
-                          <IconTrash />
-                        </button>
+                        ><IconTrash /></button>
                       </td>
                     </tr>
                   );
@@ -407,24 +478,13 @@ export default function InvoiceTable() {
           </div>
         )}
         {!loading && filteredTotal > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredTotal}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={size => { setPageSize(size); setCurrentPage(1); }}
-          />
+          <Pagination currentPage={currentPage} totalItems={filteredTotal} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={size => { setPageSize(size); setCurrentPage(1); }} />
         )}
       </div>
 
       {selected && <InvoiceDrawer invoice={selected} onClose={() => setSelected(null)} />}
       {deleteTarget && (
-        <DeleteConfirmModal
-          label={`Invoice ${deleteTarget.invoice_number ?? `#${deleteTarget.id}`}`}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
-          deleting={deleting}
-        />
+        <DeleteConfirmModal label={`Invoice ${deleteTarget.invoice_number ?? `#${deleteTarget.id}`}`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} deleting={deleting} />
       )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

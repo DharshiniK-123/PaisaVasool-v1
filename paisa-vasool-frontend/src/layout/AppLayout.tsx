@@ -84,20 +84,16 @@ const IconChevronRight = () => (
 
 const NAV_ITEMS = [
   { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: <IconDashboard /> },
-  { label: 'Upload',    to: ROUTES.UPLOAD,    icon: <IconUpload /> },
-  { label: 'Matching',  to: ROUTES.MATCHING,  icon: <IconMatching /> },
   { label: 'Invoices',  to: ROUTES.INVOICES,  icon: <IconInvoice /> },
   { label: 'Payments',  to: ROUTES.PAYMENTS,  icon: <IconPayment /> },
   { label: 'Reminders', to: ROUTES.REMINDERS, icon: <IconBell /> },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  [ROUTES.DASHBOARD]: { title: 'Dashboard',        subtitle: 'Overview of your payment operations' },
-  [ROUTES.UPLOAD]:    { title: 'Upload Documents',  subtitle: 'Upload invoices and payment files' },
-  [ROUTES.MATCHING]:  { title: 'Matching',          subtitle: 'Invoice to payment reconciliation' },
-  [ROUTES.INVOICES]:  { title: 'Invoices',          subtitle: 'All invoice records' },
-  [ROUTES.PAYMENTS]:  { title: 'Payments',          subtitle: 'All incoming payment records' },
-  [ROUTES.REMINDERS]: { title: 'Reminders',         subtitle: 'Aging reminders and notification log' },
+  [ROUTES.DASHBOARD]: { title: 'Dashboard', subtitle: 'Overview of your payment operations' },
+  [ROUTES.INVOICES]:  { title: 'Invoices',  subtitle: 'All invoice records' },
+  [ROUTES.PAYMENTS]:  { title: 'Payments',  subtitle: 'All incoming payment records' },
+  [ROUTES.REMINDERS]: { title: 'Reminders', subtitle: 'Aging reminders and notification log' },
 };
 
 const SEVERITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH'] as const;

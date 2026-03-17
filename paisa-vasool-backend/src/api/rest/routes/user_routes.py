@@ -163,8 +163,14 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
         raise HTTPException(status_code=500, detail="Session refresh failed. Please log in again.")
 
 
+# ── Admin routes ──────────────────────────────────────────────────────────────
+
 @router.get("/admin/users", response_model=List[UserResponse])
-async def list_users(admin=Depends(get_current_admin),db: AsyncSession = Depends(get_db),):
+async def list_users(
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all finance associate users. Admin only."""
     try:
         users = await get_all_users(db)
         return users
@@ -173,7 +179,12 @@ async def list_users(admin=Depends(get_current_admin),db: AsyncSession = Depends
 
 
 @router.post("/admin/users", response_model=UserResponse)
-async def admin_create_user(user_data: AdminCreateUser,admin=Depends(get_current_admin),db: AsyncSession = Depends(get_db),):
+async def admin_create_user(
+    user_data: AdminCreateUser,
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a finance associate user. Admin only."""
     try:
         existing_user = await get_user(user_data.email, db)
         if existing_user:
@@ -338,3 +349,21 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
 
     except Exception:
         raise HTTPException(status_code=500, detail="Session refresh failed. Please log in again.")
+
+@router.patch("/admin/users/{user_id}/toggle-status", response_model=UserResponse)
+async def toggle_user_status_route(
+    user_id: int,
+    admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Activate or deactivate a finance associate. Admin only."""
+    from src.core.services.user_service import toggle_user_status
+    try:
+        user = await toggle_user_status(user_id=user_id, db=db)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to update user status.")

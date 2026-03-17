@@ -6,7 +6,7 @@ export interface MatchRecord {
   invoice_id: number;
   match_status: MatchStatus;
   matched_amount?: number ;
-  discrepancy_amount?: number ;
+  amount_pending?: number ;
   match_notes?: string ;
   created_at: string;
   [key: string]: unknown;

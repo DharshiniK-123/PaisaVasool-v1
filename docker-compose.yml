@@ -74,6 +74,13 @@ services:
       DB_NAME: paisa-vasool-db
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MAIL_USERNAME: dharsveni@gmail.com
+      MAIL_PASSWORD: oohmzphgntevwlkl
+      MAIL_FROM: dharsveni@gmail.com
+      MAIL_SERVER: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_STARTTLS: True
+      MAIL_SSL_TLS: False
     volumes:
       - uploads_data:/app/uploads
     ports:
@@ -100,7 +107,7 @@ services:
       DB_NAME: paisa-vasool-db
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      GROQ_API_KEY: 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
+      GROQ_API_KEY: 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
       GOOGLE_API_KEY: AIzaSyBybohD6epnCwTgFpD_CFVRuEItANqRP-g
       JWT_SECRET_KEY: secret_key
       JWT_REFRESH_SECRET_KEY: refresh_secret_key

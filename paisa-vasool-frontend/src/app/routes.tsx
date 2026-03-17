@@ -8,13 +8,14 @@ import AppLayout from '../layout/AppLayout';
 import AdminLayout from '../layout/AdminLayout';
 import { LoginPage, RegisterPage } from '../features/auth';
 
-const DashboardPage      = lazy(() => import('../features/dashboard/components/DashboardPage'));
-const UploadPage         = lazy(() => import('../features/documents/components/UploadPage'));
-const MatchingPage       = lazy(() => import('../features/matching/components/MatchingPage'));
-const InvoicesPage       = lazy(() => import('../features/invoices/components/InvoiceTable'));
-const PaymentsPage       = lazy(() => import('../features/payments/components/PaymentTable'));
-const RemindersPage      = lazy(() => import('../features/reminders/components/ReminderPage'));
-const UserManagementPage = lazy(() => import('../features/admin/components/UserManagementPage'));
+const DashboardPage       = lazy(() => import('../features/dashboard/components/DashboardPage'));
+const UploadPage          = lazy(() => import('../features/documents/components/UploadPage'));
+const MatchingPage        = lazy(() => import('../features/matching/components/MatchingPage'));
+const InvoicesPage        = lazy(() => import('../features/invoices/components/InvoiceTable'));
+const PaymentsPage        = lazy(() => import('../features/payments/components/PaymentTable'));
+const RemindersPage       = lazy(() => import('../features/reminders/components/ReminderPage'));
+const UserManagementPage  = lazy(() => import('../features/admin/components/UserManagementPage'));
+const AdminDashboardPage  = lazy(() => import('../features/admin/components/AdminDashboardPage'));
 
 function useAuthState() {
   return useAppSelector(s => s.auth as {
@@ -64,6 +65,7 @@ export default function AppRoutes() {
           <Route path={ROUTES.REGISTER} element={<GuestRoute><RegisterPage /></GuestRoute>} />
         </Route>
 
+        {/* Finance associate routes */}
         <Route element={<FinanceRoute><AppLayout /></FinanceRoute>}>
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           <Route path={ROUTES.UPLOAD}    element={<UploadPage />} />
@@ -73,8 +75,9 @@ export default function AppRoutes() {
           <Route path={ROUTES.REMINDERS} element={<RemindersPage />} />
         </Route>
 
+        {/* Admin routes — AdminDashboardPage replaces the old DashboardPage here */}
         <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route path={ROUTES.ADMIN_DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardPage />} />
           <Route path={ROUTES.ADMIN_USERS}     element={<UserManagementPage />} />
         </Route>
 

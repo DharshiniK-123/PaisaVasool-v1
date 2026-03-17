@@ -1,7 +1,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select,or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.data.models.postgres.customer import Customer
@@ -221,7 +221,6 @@ async def get_payment_detail(payment_id: int, db: AsyncSession = Depends(get_db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not fetch payment detail: {str(e)}")
 
-
 @router.get("/dashboard/recent")
 async def get_recent_matches(limit: int = 20, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     try:
@@ -230,6 +229,15 @@ async def get_recent_matches(limit: int = 20, db: AsyncSession = Depends(get_db)
 
         result = await db.execute(
             select(MatchingPaymentInvoice)
+            .join(PaymentDetail, MatchingPaymentInvoice.payment_detail_id == PaymentDetail.id)
+            .join(InvoiceData, MatchingPaymentInvoice.invoice_id == InvoiceData.id, isouter=True)
+            .where(
+                PaymentDetail.is_deleted.is_(False),
+                or_(
+                    MatchingPaymentInvoice.invoice_id.is_(None), 
+                    InvoiceData.is_deleted.is_(False),
+                ),
+            )
             .order_by(MatchingPaymentInvoice.created_at.desc())
             .limit(limit)
         )
@@ -240,7 +248,6 @@ async def get_recent_matches(limit: int = 20, db: AsyncSession = Depends(get_db)
         raise
     except Exception:
         raise HTTPException(status_code=500, detail="Could not fetch recent matches.")
-
 
 @router.get("/dashboard/discrepancies")
 async def get_discrepancies(
@@ -265,7 +272,7 @@ async def get_discrepancies(
             .join(PaymentDetail, MatchingPaymentInvoice.payment_detail_id == PaymentDetail.id)
             .join(Customer, PaymentDetail.customer_id == Customer.id, isouter=True)
             .where(
-                MatchingPaymentInvoice.match_status.in_(["FAILED", "DUPLICATE"]),
+                MatchingPaymentInvoice.match_status.in_(["FAILED", "DUPLICATE","PARTIAL","OVERPAYMENT"]),
                 ACTIVE_PAYMENT
             )
             .order_by(MatchingPaymentInvoice.created_at.desc())

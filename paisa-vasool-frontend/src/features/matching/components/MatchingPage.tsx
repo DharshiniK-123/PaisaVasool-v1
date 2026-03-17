@@ -16,7 +16,7 @@ type MatchRecord = {
   invoice_id: number;
   match_status: MatchStatus;
   matched_amount?: number | null;
-  discrepancy_amount?: number | null;
+  amount_pending?: number | null;
   match_notes?: string | null;
   created_at: string;
   [key: string]: unknown;
@@ -314,8 +314,8 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', marginBottom: '0.3rem' }}>MATCHED AMOUNT</p>
               <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: cfg.text, lineHeight: 1 }}>{formatCurrency(match.matched_amount)}</p>
-              {match.discrepancy_amount != null && match.discrepancy_amount !== 0 && (
-                <p style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '0.3rem', fontWeight: 600 }}>Δ {formatCurrency(match.discrepancy_amount)} discrepancy</p>
+              {match.amount_pending != null && match.amount_pending !== 0 && (
+                <p style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '0.3rem', fontWeight: 600 }}>Δ {formatCurrency(match.amount_pending)} discrepancy</p>
               )}
             </div>
           </div>
@@ -449,8 +449,8 @@ function MatchCard({ match, onSelect, index, cache }: { match: MatchRecord; onSe
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.1rem' }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-accent)', fontFamily: 'Outfit, sans-serif' }}>{formatCurrency(match.matched_amount)}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          {match.discrepancy_amount != null && match.discrepancy_amount !== 0 && (
-            <span style={{ fontSize: '0.63rem', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 99, padding: '0.1rem 0.45rem', fontFamily: 'Outfit, sans-serif' }}>Δ {formatCurrency(match.discrepancy_amount)}</span>
+          {match.amount_pending != null && match.amount_pending !== 0 && (
+            <span style={{ fontSize: '0.63rem', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 99, padding: '0.1rem 0.45rem', fontFamily: 'Outfit, sans-serif' }}>Δ {formatCurrency(match.amount_pending)}</span>
           )}
           <span style={{ fontSize: '0.63rem', color: cfg.text, fontWeight: 600, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 99, padding: '0.1rem 0.55rem', fontFamily: 'Outfit, sans-serif' }}>View →</span>
         </div>
@@ -516,11 +516,7 @@ function MatchTableRow({ match, onSelect, index, cache }: { match: MatchRecord; 
         </div>
       </td>
       <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount)}</td>
-      <td style={tdStyle}>
-        {match.discrepancy_amount != null && match.discrepancy_amount !== 0
-          ? <span style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 600 }}>Δ {formatCurrency(match.discrepancy_amount)}</span>
-          : <span style={{ color: 'var(--color-faint)', fontSize: '0.72rem' }}>—</span>}
-      </td>
+      
       <td style={{ ...tdStyle, color: 'var(--color-muted)' }}>
         <div>
           <p>{timeAgo(match.created_at)}</p>
@@ -687,7 +683,6 @@ function AllMatchesTab() {
                   <th style={thStyle}>Invoice</th>
                   <th style={thStyle}>Payer</th>
                   <th style={thStyle}>Matched Amount</th>
-                  <th style={thStyle}>Discrepancy</th>
                   <th style={thStyle}>Date</th>
                   <th style={thStyle}></th>
                 </tr>
@@ -711,7 +706,6 @@ function AllMatchesTab() {
   );
 }
 
-/* Unmatched Tab */
 function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
   const dispatch = useAppDispatch();
   const { unmatchedPayments, unmatchedInvoices, unmatchedPaymentsLoading, unmatchedInvoicesLoading } = useAppSelector(s => s.matching);

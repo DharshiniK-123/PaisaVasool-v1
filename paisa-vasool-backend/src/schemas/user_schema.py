@@ -74,6 +74,7 @@ class UserResponse(BaseModel):
     email: str
     phone_no: str
     role: str
+    is_active: str = "active"
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
