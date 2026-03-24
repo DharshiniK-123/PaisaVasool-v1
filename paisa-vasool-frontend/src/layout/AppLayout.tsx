@@ -323,7 +323,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             <IconClose />
           </button>
         </div>
-
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {error && (
             <div className="banner banner-error animate-fade-in">
@@ -335,7 +334,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
               <span className="banner-icon">✓</span><p>{success}</p>
             </div>
           )}
-
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)' }}>
@@ -423,7 +421,6 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
           </section>
 
           <div style={{ height: 1, background: 'linear-gradient(to right, transparent, var(--color-border), transparent)' }} />
-
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '1rem' }}>
               Add New Rule
@@ -667,7 +664,6 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             <IconChevronRight />
           </button>
         )}
-
         <nav style={{
           flex: 1, padding: '0.75rem 0.5rem',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',

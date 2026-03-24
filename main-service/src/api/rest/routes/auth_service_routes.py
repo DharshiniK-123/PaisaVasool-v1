@@ -8,6 +8,7 @@ AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL")
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_auth(request: Request, path: str):
+    """Api gateway route for auth service"""
     forward_headers = dict(request.headers)
     forward_headers.pop("host", None)
     async with httpx.AsyncClient() as client:

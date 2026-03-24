@@ -1,13 +1,16 @@
 import axiosInstance from '../../../lib/axios';
 import type {
-  Document, InvoiceRecord, PaymentRecord,
-  UploadResponse, JobStatusResponse, SaveResponse, DocumentType,
+  Document,
+  InvoiceRecord,
+  PaymentRecord,
+  UploadResponse,
+  JobStatusResponse,
+  SaveResponse,
+  DocumentType,
 } from '../types/Document';
 
 const BASE = '/api/v1/payment_intake_matching/documents';
 
-// FIX #6 — backend detail can be a string OR an object like
-// { message: "...", errors: [...] }. Flatten it to a readable string.
 function extractDetail(detail: unknown): string {
   if (!detail) return 'Unknown error';
   if (typeof detail === 'string') return detail;
@@ -34,6 +37,23 @@ export function extractAxiosError(err: unknown): string {
   return 'Unknown error';
 }
 
+async function pollUntilDone(
+  jobId: string,
+  maxAttempts = 60,
+  intervalMs = 2000,
+): Promise<JobStatusResponse> {
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(res => setTimeout(res, intervalMs));
+    const res  = await axiosInstance.get<JobStatusResponse>(`${BASE}/jobs/${jobId}/status`);
+    const data = res.data;
+    if (data.status === 'EXTRACTED') return data;
+    if (data.status === 'FAILED') {
+      throw new Error(extractDetail(data.error) || 'Document processing failed.');
+    }
+  }
+  throw new Error('Document processing timed out. Please try again.');
+}
+
 export const documentService = {
 
   upload: async (file: File, documentType: DocumentType): Promise<UploadResponse> => {
@@ -42,30 +62,14 @@ export const documentService = {
     const res = await axiosInstance.post<UploadResponse>(
       `${BASE}/upload?document_type=${documentType}`,
       formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return res.data;
   },
 
-  pollJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
-    const MAX_ATTEMPTS = 60;
-    const INTERVAL_MS  = 2000;
+  pollJobStatus: pollUntilDone,
 
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      await new Promise(res => setTimeout(res, INTERVAL_MS));
-
-      const res  = await axiosInstance.get<JobStatusResponse>(`${BASE}/jobs/${jobId}/status`);
-      const data = res.data;
-
-      if (data.status === 'EXTRACTED') return data;
-
-      // FIX #6 — data.error can be a string or an object
-      if (data.status === 'FAILED') {
-        throw new Error(extractDetail(data.error) || 'Document processing failed.');
-      }
-    }
-
-    throw new Error('Document processing timed out. Please try again.');
-  },
+  pollJobUntilDone: pollUntilDone,
 
   saveRecords: async (
     documentId: number,

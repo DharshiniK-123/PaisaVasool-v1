@@ -23,9 +23,6 @@ export interface InvoiceRecord {
   [key: string]: unknown;
 }
 
-// FIX #7 — field names match what the LLM PaymentExtraction schema returns:
-// customer_name / customer_email (not payer_name / payer_email)
-// payment_amount (not amount), paid_date (not payment_date)
 export interface PaymentRecord {
   id?: number;
   invoice_no?: string | null;

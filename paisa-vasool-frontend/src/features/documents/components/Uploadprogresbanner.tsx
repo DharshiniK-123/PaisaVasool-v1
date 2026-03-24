@@ -15,7 +15,7 @@ function Spinner() {
   );
 }
 
-const AUTO_DISMISS_MS = 6000; // stay visible for 6s after "saved", then fade out
+const AUTO_DISMISS_MS = 6000; 
 
 export default function UploadProgressBanner() {
   const navigate  = useNavigate();
@@ -24,7 +24,6 @@ export default function UploadProgressBanner() {
   const progress  = useAppSelector(s => s.uploadProgress);
   const { status, fileName, documentType, savedCount } = progress;
 
-  // local visibility so we can animate out before resetting Redux
   const [visible, setVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,14 +35,12 @@ export default function UploadProgressBanner() {
       return;
     }
 
-    // Any active status → show the banner
     setFadeOut(false);
     setVisible(true);
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
     if (status === 'saved') {
-      // After AUTO_DISMISS_MS start fade-out animation, then fully reset
       timerRef.current = setTimeout(() => {
         setFadeOut(true);
         setTimeout(() => {
@@ -84,15 +81,12 @@ export default function UploadProgressBanner() {
     if (!isClickable) return;
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Signal the InlineUploadPanel to open (always — whether we navigate or not)
     dispatch(requestReview());
 
-    // Only navigate if we're not already on the right page
     if (location.pathname !== targetRoute) {
       navigate(targetRoute);
     }
-    // If already on the page, requestReview signal is enough —
-    // InlineUploadPanel's useEffect will open it and scroll it into view
+
   };
 
   const handleDismiss = (e: React.MouseEvent) => {
@@ -125,7 +119,6 @@ export default function UploadProgressBanner() {
         <div style={{ flexShrink: 0, color }}>
           {isWorking || isSaving ? <Spinner /> : isFailed ? '⚠' : '✓'}
         </div>
-
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {fileName ?? 'Document'}
@@ -139,7 +132,6 @@ export default function UploadProgressBanner() {
           </span>
         )}
 
-        {/* Shrinking countdown bar while saved */}
         {isSaved && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -153,7 +145,6 @@ export default function UploadProgressBanner() {
           </div>
         )}
 
-        {/* Dismiss button */}
         <button
           onClick={handleDismiss}
           style={{

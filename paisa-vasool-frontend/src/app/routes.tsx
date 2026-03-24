@@ -9,13 +9,12 @@ import AdminLayout from '../layout/AdminLayout';
 import { LoginPage, RegisterPage } from '../features/auth';
 
 const DashboardPage       = lazy(() => import('../features/dashboard/components/DashboardPage'));
-const UploadPage          = lazy(() => import('../features/documents/components/UploadPage'));
 const MatchingPage        = lazy(() => import('../features/matching/components/MatchingPage'));
 const InvoicesPage        = lazy(() => import('../features/invoices/components/InvoiceTable'));
 const PaymentsPage        = lazy(() => import('../features/payments/components/PaymentTable'));
 const RemindersPage       = lazy(() => import('../features/reminders/components/ReminderPage'));
-const UserManagementPage  = lazy(() => import('../features/admin/components/UserManagementPage'));
-const AdminDashboardPage  = lazy(() => import('../features/admin/components/AdminDashboardPage'));
+const UserManagementPage  = lazy(() => import('../features/UserManagement/components/UserManagementPage'));
+const AdminDashboardPage  = lazy(() => import('../features/dashboard/components/AdminDashboardPage'));
 
 function useAuthState() {
   return useAppSelector(s => s.auth as {
@@ -59,28 +58,21 @@ export default function AppRoutes() {
     <Suspense fallback={<LoadingSpinner fullScreen />}>
       <Routes>
         <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
-
         <Route element={<AuthLayout />}>
           <Route path={ROUTES.LOGIN}    element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path={ROUTES.REGISTER} element={<GuestRoute><RegisterPage /></GuestRoute>} />
         </Route>
-
-        {/* Finance associate routes */}
         <Route element={<FinanceRoute><AppLayout /></FinanceRoute>}>
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-          <Route path={ROUTES.UPLOAD}    element={<UploadPage />} />
           <Route path={ROUTES.MATCHING}  element={<MatchingPage />} />
           <Route path={ROUTES.INVOICES}  element={<InvoicesPage />} />
           <Route path={ROUTES.PAYMENTS}  element={<PaymentsPage />} />
           <Route path={ROUTES.REMINDERS} element={<RemindersPage />} />
         </Route>
-
-        {/* Admin routes — AdminDashboardPage replaces the old DashboardPage here */}
         <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardPage />} />
           <Route path={ROUTES.ADMIN_USERS}     element={<UserManagementPage />} />
         </Route>
-
         <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
       </Routes>
     </Suspense>

@@ -8,14 +8,14 @@ import reminderReducer from '../features/reminders/slices/reminderSlice';
 import dashboardReducer from '../features/dashboard/slices/dashboardSlice';
 import uploadProgressReducer from '../features/documents/slices/Uploadprogresslice';
 const rootReducer = combineReducers({
-  auth: authReducer,
-  documents: documentReducer,
-  invoices: invoiceReducer,
-  payments: paymentReducer,
-  matching: matchingReducer,
-  reminders: reminderReducer,
-  dashboard: dashboardReducer,
-  uploadProgress: uploadProgressReducer,
+      auth: authReducer,
+      documents: documentReducer,
+      invoices: invoiceReducer,
+      payments: paymentReducer,
+      matching: matchingReducer,
+      reminders: reminderReducer,
+      dashboard: dashboardReducer,
+      uploadProgress: uploadProgressReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

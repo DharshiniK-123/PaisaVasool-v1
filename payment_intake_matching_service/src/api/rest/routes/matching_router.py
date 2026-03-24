@@ -1,9 +1,6 @@
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select,or_
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.data.models.postgres.customer import Customer
 from src.api.rest.dependencies import get_current_user, get_db
 from src.data.models.postgres.matching_payment_invoice import MatchingPaymentInvoice
@@ -90,7 +87,6 @@ async def get_unmatched_payments(
         matched_ids = select(MatchingPaymentInvoice.payment_detail_id).where(
             MatchingPaymentInvoice.match_status.in_(["FULL", "PARTIAL", "OVERPAYMENT"])
         )
-
         result = await db.execute(
             select(
                 PaymentDetail.id,

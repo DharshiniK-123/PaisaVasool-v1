@@ -7,7 +7,6 @@ export function extractErrorMessage(err: unknown): string {
     console.error("[API Error]", axiosError);
   }
 
-  // network error
   if (!axiosError.response) {
     return axiosError.message || "Network error. Please try again.";
   }
@@ -18,7 +17,6 @@ export function extractErrorMessage(err: unknown): string {
     return "Something went wrong. Please try again.";
   }
 
-  // FastAPI validation errors
   if (status === 422) {
     const detail = data.detail;
 
@@ -37,7 +35,6 @@ export function extractErrorMessage(err: unknown): string {
     return "Validation error";
   }
 
-  // generic detail
   if (typeof data.detail === "string") {
     return data.detail;
   }

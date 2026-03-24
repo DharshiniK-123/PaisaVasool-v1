@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { ROUTES } from '../config/constants';
 import { logoutThunk, logout } from '../features/auth';
 
-/* ── icons ── */
+
 const IconDashboard = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
@@ -73,7 +73,6 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
       zIndex: 30, overflow: 'hidden', flexShrink: 0,
       boxShadow: '1px 0 0 var(--color-border)',
     }}>
-      {/* Logo */}
       <div style={{
         padding: collapsed ? '0 0' : '0 1.125rem',
         height: 60, borderBottom: '1px solid var(--color-border)',
@@ -141,7 +140,6 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
         </button>
       )}
 
-      {/* Nav */}
       <nav style={{
         flex: 1, padding: '0.75rem 0.5rem',
         display: 'flex', flexDirection: 'column', gap: '0.1rem',
@@ -172,7 +170,6 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
         ))}
       </nav>
 
-      {/* Footer */}
       <div style={{
         padding: '0.625rem 0.5rem',
         borderTop: '1px solid var(--color-border)',

@@ -13,7 +13,7 @@ export function usePayments() {
   }, [dispatch]);
 
   const refresh = () => {
-    dispatch(fetchPaymentsThunk());
+    dispatch(fetchPaymentsThunk(true as any));
   };
 
   const clearError = () => {

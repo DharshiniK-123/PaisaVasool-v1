@@ -1,5 +1,3 @@
-# src/control/extraction/Llm_extractor.py
-
 import json
 import logging
 import asyncio
@@ -15,13 +13,11 @@ from src.control.extraction.prompts import INVOICE_EXTRACT_PROMPT, PAYMENT_EXTRA
 
 logger = logging.getLogger(__name__)
 
-# ── Limits ─────────────────────────────────────────────────────────────────────
 MAX_TEXT_CHARS   = 40_000
-LLM_TIMEOUT_SECS = 60
+LLM_TIMEOUT_SECS = 120
 MAX_RETRIES      = 2
 
 
-# ── Schemas ─────────────────────────────────────────────────────────────────────
 
 class InvoiceExtraction(BaseModel):
     mismatch:       bool            = Field(description="true if this is NOT an invoice or critical data is unreadable, false if it is a valid invoice")
@@ -48,16 +44,28 @@ class PaymentExtraction(BaseModel):
     customer_email:    Optional[str]   = Field(default=None, description="Payer email or null")
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────────────
+
+class MultiInvoiceExtraction(BaseModel):
+    records: list[InvoiceExtraction] = Field(
+        description="List of all invoices found in the document. One element per invoice. "
+                    "If the document is not an invoice, return a single element with mismatch=true."
+    )
+
+class MultiPaymentExtraction(BaseModel):
+    records: list[PaymentExtraction] = Field(
+        description="List of all payment records found in the document. One element per payment. "
+                    "If the document is not a payment, return a single element with mismatch=true."
+    )
+
 
 def _get_prompt_and_schema(document_type: str):
     if document_type == "INVOICE":
-        return INVOICE_EXTRACT_PROMPT, InvoiceExtraction
-    return PAYMENT_EXTRACT_PROMPT, PaymentExtraction
+        return INVOICE_EXTRACT_PROMPT, InvoiceExtraction, MultiInvoiceExtraction
+    return PAYMENT_EXTRACT_PROMPT, PaymentExtraction, MultiPaymentExtraction
+
 
 
 def _safe_json_parse(raw: str) -> Optional[dict]:
-    """Strip markdown fences correctly (not char-by-char) then parse."""
     cleaned = re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=re.MULTILINE)
     cleaned = re.sub(r"\s*```$", "", cleaned.strip(), flags=re.MULTILINE)
     try:
@@ -108,7 +116,6 @@ def _is_transient(e: Exception) -> bool:
 
 
 async def _invoke_with_retry(chain, input_value, retries: int = MAX_RETRIES):
-    """Invoke an LLM chain with timeout and exponential back-off retry."""
     last_exc: Exception = RuntimeError("unreachable")
     for attempt in range(retries + 1):
         try:
@@ -130,9 +137,7 @@ async def _invoke_with_retry(chain, input_value, retries: int = MAX_RETRIES):
     raise last_exc
 
 
-# ── Text extraction ─────────────────────────────────────────────────────────────
-
-async def _extract_from_text(raw_text: str, document_type: str) -> dict:
+async def _extract_from_text(raw_text: str, document_type: str) -> list[dict]:
     if len(raw_text) > MAX_TEXT_CHARS:
         raise HTTPException(
             status_code=422,
@@ -142,20 +147,38 @@ async def _extract_from_text(raw_text: str, document_type: str) -> dict:
             ),
         )
     try:
-        prompt, schema = _get_prompt_and_schema(document_type)
+        prompt, item_schema, multi_schema = _get_prompt_and_schema(document_type)
         llm = get_llm()
+        structured_llm = llm.with_structured_output(multi_schema)
 
-        # Single structured call — Groq handles a plain Pydantic class fine
-        structured_llm = llm.with_structured_output(schema)
-        result: InvoiceExtraction | PaymentExtraction = await _invoke_with_retry(
+        result: MultiInvoiceExtraction | MultiPaymentExtraction = await _invoke_with_retry(
             structured_llm,
             prompt.format(raw_text=raw_text),
         )
 
-        if result.mismatch:
-            _raise_mismatch(document_type, result.detected_type or "UNKNOWN")
+        items = result.records
 
-        return result.model_dump(exclude={"mismatch", "detected_type"})
+        if not items:
+            raise HTTPException(
+                status_code=422,
+                detail=f"No valid {document_type.lower()} records could be extracted from the document.",
+            )
+
+        results = []
+        for item in items:
+            if item.mismatch:
+                if len(items) == 1:
+                    _raise_mismatch(document_type, item.detected_type or "UNKNOWN")
+                continue
+            results.append(item.model_dump(exclude={"mismatch", "detected_type"}))
+
+        if not results:
+            raise HTTPException(
+                status_code=422,
+                detail=f"No valid {document_type.lower()} records could be extracted from the document.",
+            )
+
+        return results
 
     except HTTPException:
         raise
@@ -163,16 +186,15 @@ async def _extract_from_text(raw_text: str, document_type: str) -> dict:
         _handle_llm_error(e, document_type)
 
 
-# ── Image extraction ────────────────────────────────────────────────────────────
 
-async def _extract_from_image(image_content: dict, document_type: str) -> dict:
+async def _extract_from_image(image_content: dict, document_type: str) -> list[dict]:
     try:
-        _, schema = _get_prompt_and_schema(document_type)
+        _, item_schema, _ = _get_prompt_and_schema(document_type)
         llm = get_vision_llm()
 
         schema_fields = "\n".join(
             f"- {name}: {field.description}"
-            for name, field in schema.model_fields.items()
+            for name, field in item_schema.model_fields.items()
             if name not in ("mismatch", "detected_type")
         )
 
@@ -185,35 +207,48 @@ async def _extract_from_image(image_content: dict, document_type: str) -> dict:
             {
                 "type": "text",
                 "text": (
-                    f"STEP 1: Determine if this document is a {document_type}.\n\n"
-                    f"STEP 2a: If it is NOT a {document_type}, return ONLY valid JSON:\n"
-                    f'{{"mismatch": true, "detected_type": "<PAYMENT|INVOICE|UNKNOWN>"}}\n\n'
-                    f"STEP 2b: If it IS a {document_type}, extract the fields below and return ONLY valid JSON "
-                    f"with mismatch=false. Do NOT invent values — use null for any absent optional field:\n"
-                    f"{schema_fields}"
+                    f"STEP 1: Determine if this document contains {document_type}(s).\n\n"
+                    f"STEP 2a: If it does NOT contain a {document_type}, return ONLY a JSON array:\n"
+                    f'[{{"mismatch": true, "detected_type": "<PAYMENT|INVOICE|UNKNOWN>"}}]\n\n'
+                    f"STEP 2b: If it DOES contain one or more {document_type}(s), extract each one.\n"
+                    f"Return ONLY a valid JSON array where each element is one {document_type.lower()}.\n"
+                    f"If only one {document_type.lower()} is present, still return an array with one element.\n"
+                    f"Set mismatch=false for each. Do NOT invent values — use null for absent optional fields.\n\n"
+                    f"Fields to extract for each {document_type.lower()}:\n"
+                    f"{schema_fields}\n\n"
+                    f"Always return a JSON array. Never return a plain object."
                 ),
             },
         ])
 
         response = await _invoke_with_retry(llm, [message])
-
         parsed = _safe_json_parse(response.content)
+
         if parsed is None:
             raise HTTPException(
                 status_code=422,
                 detail="Could not read the document. Please ensure the image is clear and try again.",
             )
 
-        if parsed.get("mismatch"):
-            _raise_mismatch(document_type, parsed.get("detected_type") or "UNKNOWN")
+        items = parsed if isinstance(parsed, list) else [parsed]
 
-        try:
-            validated = schema(**parsed)
-        except ValidationError as exc:
-            logger.warning(
-                "image_validation_failed",
-                extra={"doc_type": document_type, "errors": exc.errors()},
-            )
+        results = []
+        for item in items:
+            if item.get("mismatch"):
+                if len(items) == 1:
+                    _raise_mismatch(document_type, item.get("detected_type") or "UNKNOWN")
+                continue
+            try:
+                validated = item_schema(**item)
+                results.append(validated.model_dump(exclude={"mismatch", "detected_type"}))
+            except ValidationError as exc:
+                logger.warning(
+                    "image_validation_failed",
+                    extra={"doc_type": document_type, "errors": exc.errors()},
+                )
+                continue
+
+        if not results:
             raise HTTPException(
                 status_code=422,
                 detail=(
@@ -222,7 +257,7 @@ async def _extract_from_image(image_content: dict, document_type: str) -> dict:
                 ),
             )
 
-        return validated.model_dump(exclude={"mismatch", "detected_type"})
+        return results
 
     except HTTPException:
         raise
@@ -230,9 +265,8 @@ async def _extract_from_image(image_content: dict, document_type: str) -> dict:
         _handle_llm_error(e, document_type)
 
 
-# ── Public entry point ──────────────────────────────────────────────────────────
 
-async def run_extraction(content: Union[str, dict], document_type: str) -> dict:
+async def run_extraction(content: Union[str, dict], document_type: str) -> list[dict]:
     try:
         if isinstance(content, dict):
             return await _extract_from_image(content, document_type)

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { usePayments } from '../hooks/usePayments';
-import { paymentService } from '../services/paymentService';
 import InlineUploadPanel from '../../documents/components/InlineUploadPanel';
 import type { Payment } from '../types/Payment';
 import Pagination from '../../../components/common/Pagination';
@@ -22,20 +21,38 @@ const IconNote        = () => (<svg width="13" height="13" viewBox="0 0 24 24" f
 const IconTrash       = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>);
 const IconCheck       = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>);
 
-/* ── Helpers ─────────────────────────────────────────────── */
+
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
 }
-function formatCurrency(val?: number | null) {
+function formatCurrency(val?: number | null, currency?: string | null) {
   if (val == null) return '—';
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+  const cur = (currency ?? 'INR').toUpperCase().trim();
+  const locale = cur === 'INR' ? 'en-IN' : 'en-US';
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: cur, maximumFractionDigits: 2 }).format(val);
+}
+function formatCompact(val?: number | null, currency?: string | null) {
+  if (val == null) return '—';
+  const cur = (currency ?? 'INR').toUpperCase().trim();
+  const symbol = cur === 'INR' ? '₹' : cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur === 'GBP' ? '£' : cur + ' ';
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  if (cur === 'INR') {
+    if (abs >= 1_00_00_000) return `${sign}${symbol}${(abs / 1_00_00_000).toFixed(1)}Cr`;
+    if (abs >= 1_00_000)    return `${sign}${symbol}${(abs / 1_00_000).toFixed(1)}L`;
+    if (abs >= 1_000)       return `${sign}${symbol}${(abs / 1_000).toFixed(1)}K`;
+  } else {
+    if (abs >= 1_000_000_000) return `${sign}${symbol}${(abs / 1_000_000_000).toFixed(1)}B`;
+    if (abs >= 1_000_000)     return `${sign}${symbol}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000)         return `${sign}${symbol}${(abs / 1_000).toFixed(1)}K`;
+  }
+  return formatCurrency(val, currency);
 }
 function formatDate(str?: string | null) {
   if (!str) return '—';
   const d = new Date(str);
   return isNaN(d.getTime()) ? str : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
 
 const MODE_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
   UPI:    { label: 'UPI',    bg: 'rgba(52,211,153,0.1)',   text: '#34d399', border: 'rgba(52,211,153,0.25)'  },
@@ -53,36 +70,11 @@ function ModeBadge({ mode }: { mode?: string | null }) {
   return <span style={{ display: 'inline-block', padding: '0.18rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{c.label}</span>;
 }
 
-/* ── Inline Upload Panel ─────────────────────────────────── */
 
-/* ── Delete Modal ────────────────────────────────────────── */
-function DeleteConfirmModal({ label, onConfirm, onCancel, deleting }: { label: string; onConfirm: () => void; onCancel: () => void; deleting: boolean }) {
-  return (
-    <>
-      <div onClick={!deleting ? onCancel : undefined} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)', zIndex: 40 }} />
-      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: 400, zIndex: 50, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 16, padding: '2rem', boxShadow: 'var(--shadow-lg)', animation: 'popIn 0.25s var(--ease-bounce) both' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}><IconTrash /></div>
-          <div>
-            <h3 className="font-display" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.5rem' }}>Delete {label}?</h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.65 }}>Do you want to delete the payment details?</p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', width: '100%' }}>
-            <button onClick={onCancel} disabled={deleting} className="btn-secondary" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
-            <button onClick={onConfirm} disabled={deleting} style={{ padding: '0.75rem', borderRadius: 10, border: 'none', cursor: deleting ? 'not-allowed' : 'pointer', background: '#ef4444', color: '#fff', fontWeight: 600, fontSize: '0.82rem', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: deleting ? 0.6 : 1, transition: 'opacity 0.15s' }}>
-              {deleting ? <Spinner size={14} color="#fff" /> : <IconTrash />}
-              {deleting ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
 
-/* ── Payment Drawer ──────────────────────────────────────── */
+
 function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => void }) {
-  const KNOWN_KEYS = ['id','payer_name','payer_email','payer_phone','amount','payment_date','reference_number','bank_name','payment_mode','notes','document_id','customer_id','is_deleted','isdeleted','updated_at','created_at'];
+  const KNOWN_KEYS = ['id','payer_name','payer_email','payer_phone','amount','payment_date','reference_number','bank_name','payment_mode','notes','document_id','customer_id','updated_at','created_at'];
   const Row = ({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: React.ReactNode; accent?: boolean }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.7rem 0', borderBottom: '1px solid var(--color-border)' }}>
       <div style={{ color: 'var(--color-muted)', flexShrink: 0, width: 16, display: 'flex', justifyContent: 'center' }}>{icon}</div>
@@ -112,7 +104,7 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
           <div style={{ background: 'linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))', border: '1px solid rgba(96,165,250,0.15)', borderRadius: 12, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Amount Received</p>
-              <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#60a5fa', lineHeight: 1 }}>{formatCurrency(payment.amount)}</p>
+              <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: '#60a5fa', lineHeight: 1 }}>{formatCurrency(payment.amount, payment.currency)}</p>
               {payment.payment_date && <p style={{ fontSize: '0.7rem', color: 'var(--color-muted)', marginTop: '0.4rem' }}>on {formatDate(payment.payment_date)}</p>}
             </div>
             <ModeBadge mode={payment.payment_mode} />
@@ -128,7 +120,7 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>Transaction</p>
             <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0 0.875rem' }}>
-              <Row icon={<IconCurrency />} label="Amount"    value={formatCurrency(payment.amount)} accent />
+              <Row icon={<IconCurrency />} label="Amount"    value={formatCurrency(payment.amount, payment.currency)} accent />
               <Row icon={<IconCalendar />} label="Date"      value={formatDate(payment.payment_date)} />
               {payment.reference_number && <Row icon={<IconHash />} label="Reference" value={payment.reference_number} />}
               {payment.bank_name         && <Row icon={<IconBank />} label="Bank"      value={payment.bank_name} />}
@@ -159,12 +151,12 @@ function PaymentDrawer({ payment, onClose }: { payment: Payment; onClose: () => 
   );
 }
 
-/* ── Main Component ──────────────────────────────────────── */
+
+
 export default function PaymentTable() {
   const { payments, loading, refreshing, error, refresh, clearError } = usePayments();
 
   const [selected, setSelected]         = useState<Payment | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [deleting, setDeleting]         = useState(false);
   const [search, setSearch]             = useState('');
   const [modeFilter, setModeFilter]     = useState<string | null>(null);
@@ -173,12 +165,7 @@ export default function PaymentTable() {
   const [currentPage, setCurrentPage]   = useState(1);
   const [pageSize, setPageSize]         = useState(25);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try { await paymentService.delete(deleteTarget.id); refresh(); setDeleteTarget(null); }
-    catch { } finally { setDeleting(false); }
-  };
+
 
   const modes = Array.from(new Set(payments.map(p => p.payment_mode?.toUpperCase()).filter(Boolean) as string[]));
 
@@ -206,9 +193,22 @@ export default function PaymentTable() {
 
   const filteredTotal = filtered.length;
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalReceived = payments.reduce((s, p) => s + (p.amount ?? 0), 0);
-  const avgPayment    = payments.length ? totalReceived / payments.length : 0;
-  const maxPayment    = payments.reduce((m, p) => Math.max(m, p.amount ?? 0), 0);
+  const currencyTotals = payments.reduce((acc, p) => {
+    const c = (p.currency ?? 'INR').toUpperCase();
+    if (!acc[c]) acc[c] = { total: 0, count: 0, max: 0 };
+    acc[c].total += p.amount ?? 0;
+    acc[c].count += 1;
+    acc[c].max    = Math.max(acc[c].max, p.amount ?? 0);
+    return acc;
+  }, {} as Record<string, { total: number; count: number; max: number }>);
+
+  const currencies       = Object.keys(currencyTotals);
+  const dominantCurrency = currencies.sort((a, b) => currencyTotals[b].total - currencyTotals[a].total)[0] ?? 'INR';
+  const mixedCurrencies  = currencies.length > 1;
+
+  const totalReceived = currencyTotals[dominantCurrency]?.total ?? 0;
+  const avgPayment    = currencyTotals[dominantCurrency]?.count ? totalReceived / currencyTotals[dominantCurrency].count : 0;
+  const maxPayment    = currencyTotals[dominantCurrency]?.max ?? 0;
 
   const SortTh = ({ col, label }: { col: typeof sortKey; label: string }) => (
     <th onClick={() => toggleSort(col)} style={{ padding: '0.6rem 1rem', textAlign: 'left', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textTransform: 'uppercase', letterSpacing: '0.1em', color: sortKey === col ? '#60a5fa' : 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)', userSelect: 'none', transition: 'color 0.15s' }}>
@@ -222,7 +222,7 @@ export default function PaymentTable() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1200 }}>
-      {/* Header */}
+    
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#60a5fa', marginBottom: '0.35rem' }}>Incoming</p>
@@ -234,20 +234,20 @@ export default function PaymentTable() {
         >{refreshing ? <Spinner size={13} /> : <IconRefresh />} Refresh</button>
       </div>
 
-      {/* Stats */}
       {!loading && payments.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.625rem' }}>
           {[
             { label: 'Total Payments', value: payments.length, color: 'var(--color-text)',  fmt: false },
-            { label: 'Total Received', value: totalReceived,   color: '#60a5fa',             fmt: true  },
-            { label: 'Avg Payment',    value: avgPayment,       color: '#2563eb',             fmt: true  },
-            { label: 'Largest',        value: maxPayment,       color: '#7c3aed',             fmt: true  },
+            { label: `Total Received${mixedCurrencies ? ` (${dominantCurrency})` : ''}`, value: totalReceived, color: '#60a5fa', fmt: true  },
+            { label: `Avg Payment${mixedCurrencies ? ` (${dominantCurrency})` : ''}`,    value: avgPayment,    color: '#2563eb', fmt: true  },
+            { label: `Largest${mixedCurrencies ? ` (${dominantCurrency})` : ''}`,        value: maxPayment,    color: '#7c3aed', fmt: true  },
           ].map((s, i) => (
-            <div key={s.label} className="stat-card" style={{ animation: `fadeSlideUp 0.4s var(--ease-out-expo) ${i * 0.06}s both` }}>
-              <p className="font-display" style={{ fontSize: '1.35rem', fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: '0.3rem' }}>{s.fmt ? formatCurrency(s.value as number) : s.value}</p>
+            <div key={s.label} className="stat-card" title={s.fmt ? formatCurrency(s.value as number, dominantCurrency) : String(s.value)} style={{ animation: `fadeSlideUp 0.4s var(--ease-out-expo) ${i * 0.06}s both`, overflow: 'hidden', minWidth: 0 }}>
+              <p className="font-display" style={{ fontSize: 'clamp(0.95rem, 2vw, 1.35rem)', fontWeight: 800, color: s.color, lineHeight: 1.1, marginBottom: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.fmt ? formatCompact(s.value as number, dominantCurrency) : s.value}</p>
               <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)' }}>{s.label}</p>
             </div>
           ))}
+          
           {modes.length > 0 && (
             <div className="stat-card" style={{ animation: 'fadeSlideUp 0.4s var(--ease-out-expo) 0.24s both' }}>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>By Mode</p>
@@ -263,7 +263,6 @@ export default function PaymentTable() {
         </div>
       )}
 
-      {/* ── Inline Upload ── */}
       <InlineUploadPanel docType="PAYMENT" onSuccess={refresh} />
 
       {error && (
@@ -273,12 +272,11 @@ export default function PaymentTable() {
         </div>
       )}
 
-      {/* Filters */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '0.55rem 0.875rem', flex: '1 1 200px', maxWidth: 300 }}>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}><IconSearch /></span>
           <input type="text" placeholder="Search payer, reference, bank…" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--color-text)', fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif", flex: 1, minWidth: 0 }} />
-          {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', padding: 0 }}><IconClose /></button>}
+          {search && <button onClick={() => { setSearch(''); setCurrentPage(1); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', padding: 0 }}><IconClose /></button>}
         </div>
         {modes.length > 0 && (
           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
@@ -287,17 +285,16 @@ export default function PaymentTable() {
               const active = modeFilter === m;
               const cnt = payments.filter(p => (p.payment_mode ?? '').toUpperCase() === m).length;
               return (
-                <button key={m} onClick={() => setModeFilter(active ? null : m)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif", border: active ? `1px solid ${cfg.border}` : '1px solid var(--color-border)', background: active ? cfg.bg : 'transparent', color: active ? cfg.text : 'var(--color-muted)', transition: 'all 0.15s' }}>
+                <button key={m} onClick={() => { setModeFilter(active ? null : m); setCurrentPage(1); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', borderRadius: 99, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: "'DM Sans', sans-serif", border: active ? `1px solid ${cfg.border}` : '1px solid var(--color-border)', background: active ? cfg.bg : 'transparent', color: active ? cfg.text : 'var(--color-muted)', transition: 'all 0.15s' }}>
                   {cfg.label} <span style={{ opacity: 0.7 }}>({cnt})</span>
                 </button>
               );
             })}
-            {modeFilter && <button onClick={() => setModeFilter(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.68rem', fontFamily: "'DM Sans', sans-serif", textDecoration: 'underline', padding: '0 0.25rem' }}>Clear</button>}
+            {modeFilter && <button onClick={() => { setModeFilter(null); setCurrentPage(1); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.68rem', fontFamily: "'DM Sans', sans-serif", textDecoration: 'underline', padding: '0 0.25rem' }}>Clear</button>}
           </div>
         )}
       </div>
 
-      {/* Table */}
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}><Spinner /></div>
@@ -335,14 +332,9 @@ export default function PaymentTable() {
                         {p.payer_email && <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '0.1rem', whiteSpace: 'nowrap' }}>{p.payer_email}</p>}
                       </div>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa', whiteSpace: 'nowrap' }}>{formatCurrency(p.amount)}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa', whiteSpace: 'nowrap' }}>{formatCurrency(p.amount, p.currency)}</td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{formatDate(p.payment_date)}</td>
-                    <td style={{ padding: '0.5rem 1rem' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setDeleteTarget(p)} title="Delete payment" style={{ background: 'none', border: '1px solid transparent', borderRadius: 7, padding: '0.35rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(239,68,68,0.25)'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.06)'; }}
-                        onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'transparent'; el.style.color = 'var(--color-muted)'; el.style.background = 'none'; }}
-                      ><IconTrash /></button>
-                    </td>
+                   
                   </tr>
                 ))}
               </tbody>
@@ -355,9 +347,7 @@ export default function PaymentTable() {
       </div>
 
       {selected && <PaymentDrawer payment={selected} onClose={() => setSelected(null)} />}
-      {deleteTarget && (
-        <DeleteConfirmModal label={`Payment ${deleteTarget.reference_number ?? `#${deleteTarget.id}`}`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} deleting={deleting} />
-      )}
+      
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

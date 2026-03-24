@@ -1,5 +1,5 @@
 from src.data.clients.postgres_client import AsyncSessionLocal
-from fastapi import Depends, HTTPException, Request
+from fastapi import  HTTPException, Request
 from src.config.jwthandler import verify_access_token
 
 async def get_db():

@@ -21,7 +21,7 @@ export interface UploadProgressState {
   previewRows:     (InvoiceRecord | PaymentRecord)[];
   error:           string | null;
   savedCount:      number | null;
-  reviewRequested: boolean; // banner sets true → InlineUploadPanel auto-opens
+  reviewRequested: boolean; 
 }
 
 const initialState: UploadProgressState = {
@@ -111,12 +111,10 @@ const uploadProgressSlice = createSlice({
       state.error  = action.payload;
     },
 
-    // Banner clicked → signal the InlineUploadPanel to open and scroll into view
     requestReview(state) {
       state.reviewRequested = true;
     },
 
-    // InlineUploadPanel acknowledges the signal and clears it
     clearReviewRequest(state) {
       state.reviewRequested = false;
     },

@@ -1,12 +1,12 @@
 from datetime import datetime,timezone
-from sqlalchemy import UUID, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.hashing import get_password_hashed
 from src.utils.uuid import to_uuid
 from src.data.models.postgres.refresh_token import RefreshToken
 from src.data.repositories.generic_repository import commit_transaction, get_instance_by_any, insert_instance
 from src.data.models.postgres.user import User
-
+from src.data.repositories.generic_repository import update_instance_by_id, get_instance_by_id
 
 async def create_user(db : AsyncSession,user_data, role: str = "finance_associate"):
     hashed_password = get_password_hashed(user_data.password)
@@ -57,8 +57,8 @@ async def revoke_refresh_token(jti: str, db):
     await commit_transaction(db=db)
 
     return True
+
 async def toggle_user_status(user_id: int, db: AsyncSession) -> User | None:
-    from src.data.repositories.generic_repository import update_instance_by_id, get_instance_by_id
     user = await get_instance_by_id(id=user_id, model=User, db=db)
     if not user:
         return None

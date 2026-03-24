@@ -4,21 +4,12 @@ import { fetchInvoicesThunk, clearInvoiceError } from '../slices/invoiceSlice';
 
 export function useInvoices() {
   const dispatch = useAppDispatch();
-  const { invoices, loading, refreshing, error } = useAppSelector(
-    (state) => state.invoices
-  );
+  const { invoices, loading, refreshing, error } = useAppSelector(s => s.invoices);
 
-  useEffect(() => {
-    dispatch(fetchInvoicesThunk());
-  }, [dispatch]);
+  useEffect(() => { dispatch(fetchInvoicesThunk()); }, [dispatch]);
 
-  const refresh = () => {
-    dispatch(fetchInvoicesThunk());
-  };
-
-  const clearError = () => {
-    dispatch(clearInvoiceError());
-  };
+  const refresh    = () => dispatch(fetchInvoicesThunk(true as any));
+  const clearError = () => dispatch(clearInvoiceError());
 
   return { invoices, loading, refreshing, error, refresh, clearError };
 }

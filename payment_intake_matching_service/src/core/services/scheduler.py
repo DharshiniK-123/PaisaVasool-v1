@@ -1,12 +1,9 @@
-
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
-
-from src.data.models.postgres.scheduler_settings import SchedulerSettings
 from src.data.clients.postgres_client import AsyncSessionLocal
 from src.core.services.aging_service import get_overdue_invoices_with_bucket
 from src.core.services.reminder_service import process_reminder
+from src.data.repositories.scheduler_repository import get_or_create_scheduler_settings
 
 scheduler = AsyncIOScheduler()
 JOB_ID    = "aging_reminder_job"
@@ -37,10 +34,10 @@ async def run_aging_and_reminders():
                 except Exception as e:
                     failed += 1
                     print(f"[AGING] ERROR processing reminder for invoice {item['invoice'].invoice_number}: {e}")
+
             await db.commit()
 
-
-    except Exception as e:
+    except Exception:
         raise
 
 
@@ -62,16 +59,9 @@ async def start_scheduler_from_db():
     hour, minute = 9, 0
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(SchedulerSettings).where(SchedulerSettings.id == 1)
-        )
-        settings = result.scalar_one_or_none()
+        settings = await get_or_create_scheduler_settings(db)
 
-        if settings is None:
-            settings = SchedulerSettings(id=1, run_hour=9, run_minute=0, is_enabled=True)
-            db.add(settings)
-            await db.commit()
-        elif settings.is_enabled:
+        if settings.is_enabled:
             hour   = settings.run_hour
             minute = settings.run_minute
 

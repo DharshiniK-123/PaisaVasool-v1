@@ -28,11 +28,11 @@ export default function Pagination({
   onPageSizeChange,
   pageSizeOptions = [10, 25, 50, 100],
 }: PaginationProps) {
+  
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const start = Math.min((currentPage - 1) * pageSize + 1, totalItems);
   const end = Math.min(currentPage * pageSize, totalItems);
 
-  // Build page number array with ellipsis
   const getPages = (): (number | '...')[] => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
     const pages: (number | '...')[] = [1];
@@ -75,7 +75,6 @@ export default function Pagination({
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       flexWrap: 'wrap', gap: '0.75rem',
     }}>
-      {/* Left: count info + page size */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
           {totalItems === 0 ? '0 results' : `${start}–${end} of ${totalItems}`}
@@ -98,9 +97,7 @@ export default function Pagination({
           </div>
         )}
       </div>
-
-      {/* Right: page buttons */}
-      {totalPages > 1 && (
+      {totalPages >= 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           <button
             onClick={() => onPageChange(currentPage - 1)}

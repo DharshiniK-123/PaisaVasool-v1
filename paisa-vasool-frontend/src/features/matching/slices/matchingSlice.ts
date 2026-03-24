@@ -14,6 +14,17 @@ export const fetchMatchesThunk = createAsyncThunk(
   }
 );
 
+export const fetchDiscrepanciesThunk = createAsyncThunk(
+  'matching/fetchDiscrepancies',
+  async (includeResolved: boolean = false, { rejectWithValue }) => {
+    try {
+      return await matchingService.fetchDiscrepancies(includeResolved);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err));
+    }
+  }
+);
+
 export const fetchUnmatchedPaymentsThunk = createAsyncThunk(
   'matching/fetchUnmatchedPayments',
   async (_, { rejectWithValue }) => {
@@ -36,13 +47,14 @@ export const fetchUnmatchedInvoicesThunk = createAsyncThunk(
   }
 );
 
-
 const initialState: MatchingState = {
   matches: [],
+  discrepancies: [],
   unmatchedPayments: [],
   unmatchedInvoices: [],
   loading: false,
   refreshing: false,
+  discrepanciesLoading: false,
   unmatchedPaymentsLoading: false,
   unmatchedInvoicesLoading: false,
   error: null,
@@ -75,6 +87,19 @@ const matchingSlice = createSlice({
         state.refreshing = false;
         state.error = action.payload as string;
       });
+
+    builder
+      .addCase(fetchDiscrepanciesThunk.pending, (state) => {
+        state.discrepanciesLoading = true;
+      })
+      .addCase(fetchDiscrepanciesThunk.fulfilled, (state, action) => {
+        state.discrepanciesLoading = false;
+        state.discrepancies = action.payload;
+      })
+      .addCase(fetchDiscrepanciesThunk.rejected, (state) => {
+        state.discrepanciesLoading = false;
+      });
+
     builder
       .addCase(fetchUnmatchedPaymentsThunk.pending, (state) => {
         state.unmatchedPaymentsLoading = true;
