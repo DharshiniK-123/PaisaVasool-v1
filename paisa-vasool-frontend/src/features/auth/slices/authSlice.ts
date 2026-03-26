@@ -1,40 +1,52 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '../services/authService';
+import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { LoginPayload, LoginResponse } from '../types';
 import axiosInstance from '../../../lib/axios';
-
 
 export const loginThunk = createAsyncThunk<LoginResponse, LoginPayload, { rejectValue: string }>(
   'auth/login',
   async (payload, { rejectWithValue }) => {
     try {
       return await authService.login(payload);
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Login failed');
-    }
-  }
-);
-export const registerThunk = createAsyncThunk(
-  'auth/register',
-  async (payload: { email: string; password: string }, { rejectWithValue }) => {
-    try {
-      await authService.register(payload);
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.detail || 'Register failed');
-    }
-  }
-);
-export const logoutThunk = createAsyncThunk(
-  'auth/logout',
-  async (_, { rejectWithValue }) => {
-    try {
-      await authService.logout();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      return rejectWithValue(extractErrorMessage(err));
     }
   }
 );
 
-export const verifyAuthThunk = createAsyncThunk(
+export const registerThunk = createAsyncThunk<void, { email: string; password: string }, { rejectValue: string }>(
+  'auth/register',
+  async (payload, { rejectWithValue }) => {
+    try {
+      await authService.register(payload);
+    } catch (err: unknown) {
+      return rejectWithValue(extractErrorMessage(err));
+    }
+  }
+);
+
+export const logoutThunk = createAsyncThunk<void, void, { rejectValue: string }>(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await authService.logout();
+    } catch (err: unknown) {
+      if (import.meta.env.DEV) console.error("Logout failed", err);
+      return rejectWithValue(extractErrorMessage(err));
+    }
+  }
+);
+
+interface User {
+  id: string;
+  email: string;
+  role: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+export const verifyAuthThunk = createAsyncThunk<{ user: User; accessToken: string }, void, { rejectValue: string }>(
   'auth/verify',
   async (_, { rejectWithValue }) => {
     try {
@@ -42,19 +54,19 @@ export const verifyAuthThunk = createAsyncThunk(
         '/api/v1/users/refresh'
       );
       const accessToken = refreshRes.data.access_token;
-      const meRes = await axiosInstance.get('/api/v1/users/auth/me', {
+      const meRes = await axiosInstance.get<User>('/api/v1/users/auth/me', {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
       return { user: meRes.data, accessToken };
-    } catch {
-      return rejectWithValue('Not authenticated');
+    } catch (err: unknown) {
+      return rejectWithValue(extractErrorMessage(err));
     }
   }
 );
 
 interface AuthState {
-  user: { id: string; email: string; role: string; first_name?: string; last_name?: string } | null;
+  user: User | null;
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -106,7 +118,7 @@ const authSlice = createSlice({
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload ?? 'Login failed';
       });
     builder
       .addCase(registerThunk.pending, (state) => {

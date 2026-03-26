@@ -24,12 +24,6 @@ function useAuthState() {
   });
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isVerifying } = useAuthState();
-  if (isVerifying) return <LoadingSpinner fullScreen />;
-  return isAuthenticated ? <>{children}</> : <Navigate to={ROUTES.LOGIN} replace />;
-}
-
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isVerifying, user } = useAuthState();
   if (isVerifying) return <LoadingSpinner fullScreen />;
@@ -58,6 +52,7 @@ export default function AppRoutes() {
     <Suspense fallback={<LoadingSpinner fullScreen />}>
       <Routes>
         <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.LOGIN} replace />} />
+
         <Route element={<AuthLayout />}>
           <Route path={ROUTES.LOGIN}    element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path={ROUTES.REGISTER} element={<GuestRoute><RegisterPage /></GuestRoute>} />

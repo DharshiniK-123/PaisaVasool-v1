@@ -1,26 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import UploadProgressBanner from '../features/documents/components/Uploadprogresbanner';
+import { extractErrorMessage } from '../utils/errorUtils';
+import UploadProgressBanner from '../features/documents/components/UploadProgressBanner';
 import { ROUTES } from '../config/constants';
 import { logoutThunk, logout } from '../features/auth';
-import axiosInstance from '../lib/axios';
+import { agingConfigService, type AgingRule, type SchedulerSettings } from '../features/matching/services/agingConfigService';
 
 const IconDashboard = () => (
+// ... (icons remain same, skipping for brevity in target content but I'll make sure to get the range right)
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
     <rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
-  </svg>
-);
-const IconUpload = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-  </svg>
-);
-const IconMatching = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
   </svg>
 );
 const IconInvoice = () => (
@@ -105,14 +96,6 @@ const SEVERITY_STYLE: Record<Severity, { bg: string; text: string; border: strin
   HIGH:   { bg: 'rgba(239,68,68,0.08)',   text: '#b91c1c', border: 'rgba(239,68,68,0.2)'   },
 };
 
-type AgingRule = {
-  id: number;
-  due_days_from: number;
-  due_days_to: number | null;
-  severity: string;
-  reminder_frequency: number | null;
-  message_template: string;
-};
 
 type FormState = {
   due_days_from: string;
@@ -122,11 +105,6 @@ type FormState = {
   message_template: string;
 };
 
-type SchedulerSettings = {
-  run_hour: number;
-  run_minute: number;
-  is_enabled: boolean;
-};
 
 function SeverityBadge({ severity }: { severity: string }) {
   const s = SEVERITY_STYLE[severity as Severity] ?? SEVERITY_STYLE.LOW;
@@ -168,14 +146,12 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [schedulerLoading, setSchedulerLoading] = useState(true);
   const [savingScheduler, setSavingScheduler]   = useState(false);
 
-  const BASE      = '/api/v1/payment_intake_matching/aging-config';
-  const SCHED_URL = '/api/v1/payment_intake_matching/scheduler/settings';
 
   const fetchRules = async () => {
     setLoading(true); setError('');
     try {
-      const res = await axiosInstance.get<AgingRule[]>(BASE + '/');
-      setRules(Array.isArray(res.data) ? res.data : []);
+      const data = await agingConfigService.getRules();
+      setRules(data);
     } catch {
       setError('Failed to load aging config. Check your connection.');
     } finally {
@@ -186,9 +162,10 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const fetchScheduler = async () => {
     setSchedulerLoading(true);
     try {
-      const res = await axiosInstance.get<SchedulerSettings>(SCHED_URL);
-      setScheduler(res.data);
-    } catch {
+      const data = await agingConfigService.getSchedulerSettings();
+      setScheduler(data);
+    } catch (err: unknown) {
+      if (import.meta.env.DEV) console.error("Scheduler fetch failed", err);
     } finally {
       setSchedulerLoading(false);
     }
@@ -205,20 +182,21 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
     if (!form.due_days_from) return flash('Days From is required', 'error');
     setSaving(true);
     try {
-      const body: Record<string, unknown> = {
+      const body: Partial<AgingRule> = {
         due_days_from: Number(form.due_days_from),
         severity:      form.severity,
-        is_active:     true,
       };
       if (form.due_days_to)        body.due_days_to        = Number(form.due_days_to);
       if (form.reminder_frequency) body.reminder_frequency = Number(form.reminder_frequency);
       if (form.message_template)   body.message_template   = form.message_template.trim();
-      await axiosInstance.post(BASE + '/', body);
+      
+      await agingConfigService.addRule(body);
       flash('Aging rule added successfully', 'success');
       setForm({ due_days_from: '', due_days_to: '', severity: 'MEDIUM', reminder_frequency: '', message_template: '' });
       fetchRules();
-    } catch (err: any) {
-      flash(err?.response?.data?.detail ?? 'Failed to add rule', 'error');
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err);
+      flash(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -227,9 +205,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const handleSaveScheduler = async () => {
     setSavingScheduler(true);
     try {
-      await axiosInstance.put(
-        `${SCHED_URL}?run_hour=${scheduler.run_hour}&run_minute=${scheduler.run_minute}&is_enabled=${scheduler.is_enabled}`
-      );
+      await agingConfigService.updateSchedulerSettings(scheduler);
       flash('Scheduler updated successfully', 'success');
     } catch {
       flash('Failed to update scheduler', 'error');
@@ -241,7 +217,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const handleDelete = async (id: number) => {
     setDeleting(id);
     try {
-      await axiosInstance.delete(`${BASE}/${id}`);
+      await agingConfigService.deleteRule(id);
       setRules(r => r.filter(x => x.id !== id));
       flash('Rule deleted', 'success');
     } catch {
@@ -323,6 +299,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
             <IconClose />
           </button>
         </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {error && (
             <div className="banner banner-error animate-fade-in">
@@ -334,6 +311,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
               <span className="banner-icon">✓</span><p>{success}</p>
             </div>
           )}
+
           <section>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)' }}>
@@ -421,6 +399,7 @@ function SettingsDrawer({ onClose }: { onClose: () => void }) {
           </section>
 
           <div style={{ height: 1, background: 'linear-gradient(to right, transparent, var(--color-border), transparent)' }} />
+
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '1rem' }}>
               Add New Rule
@@ -664,6 +643,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             <IconChevronRight />
           </button>
         )}
+
         <nav style={{
           flex: 1, padding: '0.75rem 0.5rem',
           display: 'flex', flexDirection: 'column', gap: '0.1rem',
@@ -714,7 +694,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-accent)' }}>
-                  {((user as any).email?.[0] ?? 'U').toUpperCase()}
+                  {((user as { email?: string }).email?.[0] ?? 'U').toUpperCase()}
                 </span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -723,7 +703,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                   color: 'var(--color-text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {(user as any).email}
+                  {(user as { email?: string }).email}
                 </p>
                 <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>Operator</p>
               </div>
@@ -800,15 +780,7 @@ function TopBar() {
         <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>
           {dateStr}
         </span>
-        <div className="session-badge">
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: 'var(--color-accent)', display: 'inline-block',
-            boxShadow: '0 0 6px var(--color-accent)',
-            animation: 'pulseSlow 2s ease-in-out infinite',
-          }} />
-          Live
-        </div>
+       
       </div>
     </header>
   );

@@ -6,6 +6,7 @@ from decimal import Decimal
 class MatchingConfig:
     rounding_tolerance: Decimal = Decimal("1.00")
     min_match_score:    int     = 50
+
     w_inv_exact:      int = 50
     w_inv_partial:    int = 30
     w_customer:       int = 25

@@ -1,29 +1,24 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, Numeric, ForeignKey, Boolean, func, UniqueConstraint
-from src.data.clients.postgres_client import base
 
+CREATE TABLE IF NOT EXISTS invoice_data (
+    id              SERIAL          PRIMARY KEY,
+    document_id     INTEGER         NOT NULL REFERENCES documents(id)  ON DELETE RESTRICT,
+    customer_id     INTEGER         NOT NULL REFERENCES customers(id)  ON DELETE RESTRICT,
+    invoice_number  VARCHAR(100)    NOT NULL,
+    invoice_date    DATE            NOT NULL,
+    due_date        DATE            NOT NULL,
+    total_amount    NUMERIC(12, 2)  NOT NULL,
+    paid_amount     NUMERIC(12, 2)  NOT NULL DEFAULT 0.00,
+    payment_status  VARCHAR(20)     NOT NULL DEFAULT 'UNPAID',  -- UNPAID / PARTIAL / PAID
+    currency        VARCHAR(10)     NOT NULL DEFAULT 'INR',
+    gl_code         VARCHAR(50),
+    is_deleted      BOOLEAN         NOT NULL DEFAULT FALSE,
+    updated_at      TIMESTAMPTZ     DEFAULT NOW(),
 
-class InvoiceData(base):
-    __tablename__ = "invoice_data"
+    CONSTRAINT unique_invoice_document_active
+        UNIQUE (invoice_number, document_id, is_deleted)
+);
 
-    id              = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    document_id     = Column(Integer, ForeignKey("documents.id"), nullable=False)
-    customer_id     = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    invoice_number  = Column(String(100), nullable=False)
-    invoice_date    = Column(Date, nullable=False)
-    due_date        = Column(Date, nullable=False)
-    total_amount    = Column(Numeric(12, 2), nullable=False)
-    paid_amount     = Column(Numeric(12, 2), nullable=False, default=0.00)
-    payment_status  = Column(String(20), nullable=False, default="UNPAID")
-    currency        = Column(String(10), nullable=False, default="INR")
-    gl_code         = Column(String(50), nullable=True)
-    is_deleted      = Column(Boolean, nullable=False, default=False)
-    updated_at      = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
-
-    __table_args__ = (
-        UniqueConstraint(
-            "invoice_number",
-            "customer_id",
-            "is_deleted",
-            name="unique_invoice_customer_active",
-        ),
-    )
+CREATE INDEX IF NOT EXISTS idx_invoice_data_customer_id    ON invoice_data (customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_data_payment_status ON invoice_data (payment_status);
+CREATE INDEX IF NOT EXISTS idx_invoice_data_due_date       ON invoice_data (due_date);
+CREATE INDEX IF NOT EXISTS idx_invoice_data_is_deleted     ON invoice_data (is_deleted);

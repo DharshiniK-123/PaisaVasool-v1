@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import { loginThunk, logoutThunk, registerThunk, clearError, verifyAuthThunk } from '../slices/authSlice';
+import { loginThunk, logoutThunk, registerThunk, clearError } from '../slices/authSlice';
 import type { LoginPayload, RegisterPayload } from '../types/index';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../config/constants';

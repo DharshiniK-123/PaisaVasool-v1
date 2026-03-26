@@ -1,14 +1,14 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { paymentService } from '../services/paymentService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
-import type { PaymentState } from '../types/Payment';
+import type { Payment, PaymentState } from '../types/Payment';
 
-export const fetchPaymentsThunk = createAsyncThunk(
+export const fetchPaymentsThunk = createAsyncThunk<Payment[], boolean | void>(
   'payments/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (_silent, { rejectWithValue }) => {
     try {
       return await paymentService.fetchAll();
-    } catch (err) {
+    } catch (err: unknown) {
       return rejectWithValue(extractErrorMessage(err));
     }
   }
@@ -32,7 +32,7 @@ const paymentSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchPaymentsThunk.pending, (state, action) => {
-        const silent = action.meta.arg as unknown as boolean | undefined;
+        const silent = action.meta.arg as boolean | undefined;
         if (silent) {
           state.refreshing = true;
         } else {

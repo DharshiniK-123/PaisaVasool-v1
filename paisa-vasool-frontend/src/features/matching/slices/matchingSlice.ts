@@ -111,6 +111,7 @@ const matchingSlice = createSlice({
       .addCase(fetchUnmatchedPaymentsThunk.rejected, (state) => {
         state.unmatchedPaymentsLoading = false;
       });
+
     builder
       .addCase(fetchUnmatchedInvoicesThunk.pending, (state) => {
         state.unmatchedInvoicesLoading = true;

@@ -15,7 +15,7 @@ export const invoiceService = {
         try {
           const { data } = await axiosInstance.get(`${BASE}/documents/${doc.id}/invoices`);
           if (Array.isArray(data)) allInvoices.push(...data);
-        } catch {}
+        } catch { /* ignore fetching silently */ }
       })
     );
     return allInvoices;

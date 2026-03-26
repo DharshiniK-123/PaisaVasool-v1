@@ -1,11 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { invoiceService } from '../services/invoiceService';
 import { extractErrorMessage } from '../../../utils/errorUtils';
-import type { InvoiceState } from '../types/Invoice';
+import type { InvoiceState, Invoice } from '../types/Invoice';
 
-export const fetchInvoicesThunk = createAsyncThunk(
+export const fetchInvoicesThunk = createAsyncThunk<Invoice[], boolean | void>(
   'invoices/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (_silent, { rejectWithValue }) => {
     try {
       return await invoiceService.fetchAll();
     } catch (err) {

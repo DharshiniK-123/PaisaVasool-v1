@@ -15,7 +15,9 @@ export const paymentService = {
         try {
           const { data } = await axiosInstance.get(`${BASE}/documents/${doc.id}/payments`);
           if (Array.isArray(data)) allPayments.push(...data);
-        } catch {}
+        } catch (err: unknown) {
+          if (import.meta.env.DEV) console.error(`Failed to fetch payments for doc ${doc.id}`, err);
+        }
       })
     );
     return allPayments;

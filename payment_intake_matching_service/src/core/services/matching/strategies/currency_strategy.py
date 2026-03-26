@@ -1,10 +1,18 @@
 from decimal import Decimal
 
 from src.config.matching_config import MATCHING_CONFIG
+
 from .base import BaseMatchStrategy, ScoreResult
 
 
 class CurrencyStrategy(BaseMatchStrategy):
+    """
+    Scores currency match.
+    - Same currency       → full points, no extra info needed
+    - FX converted        → full points + conversion details logged
+    Both cases pass. Currency mismatch without conversion is handled
+    upstream (currency_mismatches loop) before this strategy runs.
+    """
 
     def score(
         self,
@@ -32,6 +40,7 @@ class CurrencyStrategy(BaseMatchStrategy):
                 passed=True,
             )
 
+        # Same currency — simple pass
         return ScoreResult(
             points=MATCHING_CONFIG.w_currency,
             reasons=[],

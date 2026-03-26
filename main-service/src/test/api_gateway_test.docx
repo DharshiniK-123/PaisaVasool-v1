@@ -1,0 +1,93 @@
+# API Gateway Test Document
+
+## Objective
+
+Validate that the API Gateway correctly routes requests and handles failures.
+
+---
+
+## Test Scope
+
+### 1. Health Check
+
+* Ensure service is running
+
+### 2. Routing Tests
+
+* Auth route → forwarded correctly
+* Matching route → forwarded correctly
+
+### 3. Header Forwarding
+
+* Authorization header is passed
+
+### 4. Error Handling
+
+* Upstream service down → returns 503
+* Invalid upstream → returns 502
+
+### 5. Content Handling
+
+* JSON request → forwarded correctly
+* Multipart file upload → forwarded correctly
+
+---
+
+## Out of Scope
+
+* Business logic validation
+* Database testing
+* Authentication validation (handled by auth service)
+
+---
+
+## Sample Test Cases
+
+### Test 1: Basic Routing
+
+```
+GET /api/v1/users/profile
+Expected: forwarded to auth service
+```
+
+---
+
+### Test 2: Service Down
+
+```
+Stop auth service
+Call API
+Expected: 503 response
+```
+
+---
+
+### Test 3: File Upload
+
+```
+POST /api/v1/payment_intake_matching/upload
+Upload file
+Expected: forwarded correctly
+```
+
+---
+
+### Test 4: JSON Request
+
+```
+POST /api/v1/payment_intake_matching/process
+Body: JSON
+Expected: forwarded correctly
+```
+
+---
+
+##  Tools
+
+* swagger
+
+---
+
+##  Conclusion
+
+Testing ensures gateway reliability without duplicating business logic testing.

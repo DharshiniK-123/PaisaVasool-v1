@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
 
-  useEffect(() => { clearError(); }, []);
+  useEffect(() => { clearError(); }, [clearError]);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   };

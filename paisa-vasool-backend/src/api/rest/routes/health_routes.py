@@ -1,21 +1,24 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from src.api.rest.dependencies import get_db  
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.api.rest.dependencies import get_db
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
 
 @router.get("/")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Basic liveness check — is the service running?"""
     return {"status": "ok"}
 
 
 @router.get("/ready")
-async def readiness_check(db: AsyncSession = Depends(get_db)):
+async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Readiness check — is the service ready to handle requests?"""
-    checks = {}
+    checks: dict[str, str] = {}
 
     try:
         await db.execute(text("SELECT 1"))

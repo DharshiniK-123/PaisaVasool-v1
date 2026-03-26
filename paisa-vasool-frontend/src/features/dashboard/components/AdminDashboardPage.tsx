@@ -12,6 +12,7 @@ import {
 } from 'chart.js';
 import { adminService } from '../../UserManagement/services/adminService';
 import type { FinanceUser, UserActivityStat } from '../../UserManagement/types';
+import { extractErrorMessage } from '../../../utils/errorUtils';
 import { ROUTES } from '../../../config/constants';
 
 ChartJS.register(
@@ -191,6 +192,7 @@ function UserGrowthChart({ users }: { users: FinanceUser[] }) {
       },
     });
     return () => { chartRef.current?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
 
   return <div style={{ height: 220 }}><canvas ref={canvasRef} /></div>;
@@ -235,6 +237,7 @@ function UserActivityChart({ users, activityMap }: { users: FinanceUser[]; activ
       },
     });
     return () => { chartRef.current?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, activityMap]);
 
   if (sorted.length === 0) return <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.82rem' }}>No activity data yet</div>;
@@ -283,6 +286,7 @@ function TopUsersChart({ users, activityMap }: { users: FinanceUser[]; activityM
       },
     });
     return () => { chartRef.current?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, activityMap]);
 
   if (ranked.length === 0) return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.82rem' }}>No activity data yet</div>;
@@ -438,7 +442,7 @@ export default function AdminDashboardPage() {
     if (!silent) setLoadingUsers(true);
     setError('');
     try { setUsers(await adminService.listUsers()); }
-    catch (err: any) { setError(err?.response?.data?.detail ?? 'Failed to load users.'); }
+    catch (err: unknown) { setError(extractErrorMessage(err)); }
     finally { setLoadingUsers(false); }
   }, []);
 
@@ -470,7 +474,7 @@ export default function AdminDashboardPage() {
       const action = updated.is_active === 'active' ? 'activated' : 'deactivated';
       setSuccessMsg(`${updated.first_name} ${updated.last_name} has been ${action}.`);
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) { setError(err?.response?.data?.detail ?? 'Failed to update user status.'); }
+    } catch (err: unknown) { setError(extractErrorMessage(err)); }
     finally { setToggling(null); setConfirmUser(null); }
   };
 

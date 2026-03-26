@@ -97,7 +97,7 @@ export default function Pagination({
           </div>
         )}
       </div>
-      {totalPages >= 1 && (
+      {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           <button
             onClick={() => onPageChange(currentPage - 1)}

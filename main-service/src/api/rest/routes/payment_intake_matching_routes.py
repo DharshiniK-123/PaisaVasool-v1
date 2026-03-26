@@ -6,9 +6,10 @@ router = APIRouter(prefix="/api/v1/payment_intake_matching")
 
 MATCHING_SERVICE_URL = os.getenv("MATCHING_SERVICE_URL")
 
+
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_matching(request: Request, path: str):
-    """Api gateway route for payment_intake_matching service"""
+    """Api gateway route for payment_intake_mathcing service"""
     url = f"{MATCHING_SERVICE_URL}/api/v1/payment_intake_matching/{path}"
     forward_headers = {}
     auth_header = request.headers.get("Authorization")
@@ -31,6 +32,7 @@ async def proxy_matching(request: Request, path: str):
                     ))
                 else:
                     data[key] = value
+
             response = await client.request(
                 method=request.method,
                 url=url,

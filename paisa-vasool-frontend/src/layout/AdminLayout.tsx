@@ -73,6 +73,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
       zIndex: 30, overflow: 'hidden', flexShrink: 0,
       boxShadow: '1px 0 0 var(--color-border)',
     }}>
+      {/* Logo */}
       <div style={{
         padding: collapsed ? '0 0' : '0 1.125rem',
         height: 60, borderBottom: '1px solid var(--color-border)',
@@ -190,7 +191,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-accent)' }}>
-                {((user as any).email?.[0] ?? 'A').toUpperCase()}
+                {((user as { email?: string }).email?.[0] ?? 'A').toUpperCase()}
               </span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -199,7 +200,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
                 color: 'var(--color-text)',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                {(user as any).email}
+                {(user as { email?: string }).email}
               </p>
               <p style={{ fontSize: '0.62rem', color: 'var(--color-accent)', fontWeight: 600 }}>Admin</p>
             </div>
@@ -251,15 +252,7 @@ function AdminTopBar() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{dateStr}</span>
-        <div className="session-badge">
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: 'var(--color-accent)', display: 'inline-block',
-            boxShadow: '0 0 6px var(--color-accent)',
-            animation: 'pulseSlow 2s ease-in-out infinite',
-          }} />
-          Live
-        </div>
+        
       </div>
     </header>
   );

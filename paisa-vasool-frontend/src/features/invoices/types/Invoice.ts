@@ -21,7 +21,6 @@ export interface Invoice {
   due_date?: string | null;
   invoice_date?: string | null;
   payment_status?: string | null;
-  currency?: string | null;
   document_id?: number | null;
   is_deleted?: boolean;
   matches?: InvoiceMatch[];

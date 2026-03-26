@@ -4,7 +4,6 @@ export interface Payment {
   payer_email?: string | null;
   payer_phone?: string | null;
   amount?: number | null;
-  currency?: string | null;
   payment_date?: string | null;
   reference_number?: string | null;
   bank_name?: string | null;

@@ -7,10 +7,15 @@ from decimal import Decimal
 class ScoreResult:
     points:  int
     reasons: list[str]
+    # If False this strategy hard-disqualifies the invoice — pipeline stops immediately
     passed:  bool = True
 
 
 class BaseMatchStrategy(ABC):
+    """
+    Each strategy scores ONE signal (invoice number, amount, customer, currency).
+    Return passed=False to hard-disqualify — no further strategies will run.
+    """
 
     @abstractmethod
     def score(

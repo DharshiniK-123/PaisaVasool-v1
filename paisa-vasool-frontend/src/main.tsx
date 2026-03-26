@@ -5,15 +5,18 @@ import App from './App';
 import { store } from './app/store';
 import { injectStore } from './lib/axios';
 import { Provider } from 'react-redux';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 injectStore(store);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  
-    <BrowserRouter>
-     <Provider store={store}>
-      <App />
-    </Provider>
-    </BrowserRouter>
-  
+  <React.StrictMode>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Provider store={store}>
+          <App />
+        </Provider>
+      </BrowserRouter>
+    </ErrorBoundary>
+  </React.StrictMode>
 );

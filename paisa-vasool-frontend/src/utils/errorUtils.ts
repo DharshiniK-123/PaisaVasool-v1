@@ -1,64 +1,46 @@
-import type { AxiosError } from "axios";
-
 export function extractErrorMessage(err: unknown): string {
-  const axiosError = err as AxiosError<any>;
+  const axiosError = err as { 
+    response?: { 
+      data?: { 
+        detail?: unknown; 
+        message?: string; 
+        error?: string 
+      }; 
+      status?: number 
+    }; 
+    message?: string 
+  };
 
   if (import.meta.env.DEV) {
     console.error("[API Error]", axiosError);
   }
 
-  if (!axiosError.response) {
-    return axiosError.message || "Network error. Please try again.";
-  }
+  const data = axiosError?.response?.data;
 
-  const { data, status } = axiosError.response;
-
-  if (!data) {
-    return "Something went wrong. Please try again.";
-  }
-
-  if (status === 422) {
-    const detail = data.detail;
-
-    if (typeof detail === "string") {
-      return detail;
+  if (data) {
+    if (data.detail) {
+      const detail = data.detail;
+      if (typeof detail === 'string') return detail;
+      if (typeof detail === 'object' && detail !== null) {
+        if ('message' in detail) return String((detail as { message: unknown }).message);
+        if (Array.isArray(detail)) {
+          return detail
+            .map((d: unknown) => {
+              if (typeof d === 'object' && d !== null) {
+                const entry = d as { msg?: string; message?: string };
+                return entry.msg || entry.message || "Unknown error";
+              }
+              return String(d);
+            })
+            .join(", ");
+        }
+      }
+      return JSON.stringify(detail);
     }
-
-    if (Array.isArray(detail)) {
-      return detail.map((d: any) => d.msg || d.message).join(", ");
-    }
-
-    if (typeof detail === "object" && detail.message) {
-      return detail.message;
-    }
-
-    return "Validation error";
+    if (data.message) return data.message;
+    if (data.error) return data.error;
   }
 
-  if (typeof data.detail === "string") {
-    return data.detail;
-  }
-
-  if (typeof data.message === "string") {
-    return data.message;
-  }
-
-  if (typeof data.error === "string") {
-    return data.error;
-  }
-
-  switch (status) {
-    case 500:
-      return "Server error (500). Check backend logs.";
-    case 413:
-      return "File is too large.";
-    case 415:
-      return "Unsupported file type.";
-    case 401:
-      return "Please login again.";
-    case 403:
-      return "Permission denied.";
-  }
-
-  return "Something went wrong. Please try again.";
+  if (axiosError?.message) return axiosError.message;
+  return "An unexpected error occurred. Please try again.";
 }

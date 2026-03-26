@@ -7,7 +7,7 @@ interface FormState { first_name: string; last_name: string; email: string; phon
 type TouchedState = Record<keyof FormState, boolean>;
 
 const PHONE_RE = /^[6-9]\d{9}$/;
-const PASS_RE  = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:,.<>/?~]).{6,}$/;
+const PASS_RE  = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{}|;:,.<>/?~]).{6,}$/;
 
 function getStrength(p: string): { label: string; color: string; width: string } {
   if (!p) return { label: '', color: '', width: '0%' };
@@ -28,7 +28,7 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false);
   const [touched, setTouched]   = useState<TouchedState>({ first_name: false, last_name: false, email: false, phone_no: false, password: false });
   const [successMsg, setSuccessMsg] = useState('');
-  useEffect(() => { clearError(); }, []);
+  useEffect(() => { clearError(); }, [clearError]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -63,8 +63,6 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!isValid) return;
     
-    console.log('Submitting form data:', form);
-    console.log('Form validation:', { isValid, errors });
     
     const success = await register({ first_name: form.first_name, last_name: form.last_name, email: form.email, phone_no: form.phone_no, password: form.password });
     if (success) setSuccessMsg('Account created! Redirecting to login…');

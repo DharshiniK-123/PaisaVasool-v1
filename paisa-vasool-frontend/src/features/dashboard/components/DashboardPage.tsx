@@ -1,51 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  type MatchStatus,
+  type MatchRecord,
+  type MatchPaymentDetail as PaymentDetail,
+  type MatchInvoiceData as InvoiceData
+} from '../../matching/types/Match';
+import { type DashboardSummary } from '../types/index';
+import { extractErrorMessage } from '../../../utils/errorUtils';
 import { ROUTES } from '../../../config/constants';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {fetchDashboardSummaryThunk,fetchRecentMatchesThunk,} from '../slices/dashboardSlice';
-import {fetchUnmatchedPaymentsThunk,fetchUnmatchedInvoicesThunk,} from '../../matching/slices/matchingSlice';
-import axiosInstance from '../../../lib/axios';
+import {
+  fetchDashboardSummaryThunk,
+  fetchRecentMatchesThunk,
+} from '../slices/dashboardSlice';
+import {
+  fetchUnmatchedPaymentsThunk,
+  fetchUnmatchedInvoicesThunk,
+} from '../../matching/slices/matchingSlice';
+import { agingConfigService } from '../../matching/services/agingConfigService';
 
-type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'FAILED';
-
-type MatchRecord = {
-  id: number;
-  payment_detail_id: number;
-  invoice_id: number;
-  match_status: MatchStatus;
-  matched_amount?: number;
-  currency?: string | null;
-  created_at: string;
-  [key: string]: unknown;
-};
-
-type PaymentDetail = {
-  id: number;
-  amount?: number;
-  currency?: string | null;
-  payer_name?: string;
-  payment_date?: string;
-  reference_number?: string;
-  [key: string]: unknown;
-};
-
-type InvoiceData = {
-  id: number;
-  invoice_number?: string;
-  customer_name?: string;
-  total_amount?: number;
-  currency?: string | null;
-  due_date?: string;
-  payment_status?: string;
-  [key: string]: unknown;
-};
-
-type DashboardSummary = {
-  FULL: MatchRecord[];
-  PARTIAL: MatchRecord[];
-  OVERPAYMENT: MatchRecord[];
-  FAILED: MatchRecord[];
-};
 
 type Discrepancy = {
   id: number;
@@ -69,7 +43,6 @@ const IconFailed     = () => (<svg width="15" height="15" viewBox="0 0 24 24" fi
 const IconUnmatched  = () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>);
 const IconArrowRight = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>);
 const IconRefresh    = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
-const IconUpload     = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>);
 const IconInvoice    = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>);
 const IconBell       = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>);
 const IconChevLeft   = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>);
@@ -77,15 +50,12 @@ const IconChevRight  = () => (<svg width="13" height="13" viewBox="0 0 24 24" fi
 const IconResolved   = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
 
 
-
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
 }
 function formatCurrency(val?: number | null, currency?: string | null) {
   if (val == null) return '—';
-  const cur = (currency ?? 'INR').toUpperCase().trim();
-  const locale = cur === 'INR' ? 'en-IN' : 'en-US';
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: cur, maximumFractionDigits: 2 }).format(val);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: currency ?? 'INR', maximumFractionDigits: 0 }).format(val);
 }
 function formatDate(str?: string | null) {
   if (!str) return '—';
@@ -109,7 +79,6 @@ function isOverdue(dateStr?: string | null) {
 }
 
 
-
 const thStyle: React.CSSProperties = {
   padding: '0.6rem 1rem', textAlign: 'left',
   fontSize: '0.6rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif',
@@ -122,7 +91,6 @@ const tdStyle: React.CSSProperties = {
   whiteSpace: 'nowrap', maxWidth: 180,
   overflow: 'hidden', textOverflow: 'ellipsis',
 };
-
 
 
 const PAGE_SIZE = 8;
@@ -160,11 +128,11 @@ function MiniPagination({ total, page, onPage }: { total: number; page: number; 
 }
 
 
-
 const STATUS_CONFIG: Record<MatchStatus, { label: string; icon: React.ReactNode; bg: string; text: string; border: string; glow: string }> = {
   FULL:        { label: 'Fully Paid',  icon: <IconCheck />,   bg: 'rgba(52,211,153,0.1)',  text: '#34d399', border: 'rgba(52,211,153,0.25)',  glow: 'rgba(52,211,153,0.08)'  },
   PARTIAL:     { label: 'Partial',     icon: <IconPartial />, bg: 'rgba(251,191,36,0.1)',  text: '#fbbf24', border: 'rgba(251,191,36,0.25)',  glow: 'rgba(251,191,36,0.06)'  },
   OVERPAYMENT: { label: 'Overpayment', icon: <IconOver />,    bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
+  DUPLICATE:   { label: 'Duplicate',   icon: <IconPartial />, bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
   FAILED:      { label: 'Failed',      icon: <IconFailed />,  bg: 'rgba(248,113,113,0.1)', text: '#f87171', border: 'rgba(248,113,113,0.25)', glow: 'rgba(248,113,113,0.06)' },
 };
 
@@ -178,21 +146,14 @@ function StatusBadge({ status }: { status: MatchStatus }) {
 }
 
 
-
 function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; loading: boolean }) {
   const navigate = useNavigate();
   const total = summary ? Object.values(summary).reduce((acc, arr) => acc + arr.length, 0) : 0;
-
-  const cardCurrency = (matches: MatchRecord[]) => {
-    const currencies = [...new Set(matches.map(m => (m.currency ?? 'INR').toUpperCase()))];
-    return { currency: currencies[0] ?? 'INR', mixedCurrencies: currencies.length > 1 };
-  };
-
   const cards = [
-    { key: 'FULL' as MatchStatus,        label: 'Fully Paid',     count: summary?.FULL.length ?? 0,        amount: summary?.FULL.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0,        icon: <IconCheck />, ...cardCurrency(summary?.FULL ?? []) },
-    { key: 'PARTIAL' as MatchStatus,     label: 'Partially Paid', count: summary?.PARTIAL.length ?? 0,     amount: summary?.PARTIAL.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0,     icon: <IconPartial />, ...cardCurrency(summary?.PARTIAL ?? []) },
-    { key: 'OVERPAYMENT' as MatchStatus, label: 'Overpayment',    count: summary?.OVERPAYMENT.length ?? 0, amount: summary?.OVERPAYMENT.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0, icon: <IconOver />, ...cardCurrency(summary?.OVERPAYMENT ?? []) },
-    { key: 'FAILED' as MatchStatus,      label: 'Failed',         count: summary?.FAILED.length ?? 0,      amount: 0,                                                                           icon: <IconFailed />, currency: 'INR', mixedCurrencies: false },
+    { key: 'FULL' as MatchStatus,        label: 'Fully Paid',     count: summary?.FULL?.length ?? 0,        amount: summary?.FULL?.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0,        icon: <IconCheck /> },
+    { key: 'PARTIAL' as MatchStatus,     label: 'Partially Paid', count: summary?.PARTIAL?.length ?? 0,     amount: summary?.PARTIAL?.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0,     icon: <IconPartial /> },
+    { key: 'OVERPAYMENT' as MatchStatus, label: 'Overpayment',    count: summary?.OVERPAYMENT?.length ?? 0, amount: summary?.OVERPAYMENT?.reduce((s, m) => s + (m.matched_amount ?? 0), 0) ?? 0, icon: <IconOver /> },
+    { key: 'FAILED' as MatchStatus,      label: 'Failed',         count: summary?.FAILED?.length ?? 0,      amount: 0,                                                                           icon: <IconFailed /> },
   ];
   return (
     <div>
@@ -228,7 +189,7 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
               </div>
               <p className="font-display" style={{ fontSize: '1.5rem', fontWeight: 800, color: cfg.text, lineHeight: 1, marginBottom: '0.25rem' }}>{loading ? '—' : card.count}</p>
               <p style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--color-text)', marginBottom: '0.2rem' }}>{card.label}</p>
-              {card.amount > 0 && <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(card.amount, card.currency ?? 'INR')}{card.mixedCurrencies ? ' *' : ''}</p>}
+              {card.amount > 0 && <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(card.amount)}</p>}
             </div>
           );
         })}
@@ -237,17 +198,13 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
   );
 }
 
-
-
 function UnmatchedSection({ unmatchedPayments, unmatchedInvoices, loading }: {
   unmatchedPayments: PaymentDetail[];
   unmatchedInvoices: InvoiceData[];
   loading: boolean;
 }) {
-  const navigate = useNavigate();
   const [tab, setTab]   = useState<'payments' | 'invoices'>('payments');
   const [page, setPage] = useState(1);
-
 
   const handleTab = (t: 'payments' | 'invoices') => { setTab(t); setPage(1); };
 
@@ -264,7 +221,7 @@ function UnmatchedSection({ unmatchedPayments, unmatchedInvoices, loading }: {
 
   return (
     <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
-  
+     
       <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', background: 'var(--color-surface-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171' }}>
@@ -319,7 +276,7 @@ function UnmatchedSection({ unmatchedPayments, unmatchedInvoices, loading }: {
                       <>
                         <td style={tdStyle}><span style={{ color: 'var(--color-muted)' }}>#{row.id}</span></td>
                         <td style={tdStyle}>{(row as PaymentDetail).payer_name ?? '—'}</td>
-                        <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency((row as PaymentDetail).amount, (row as PaymentDetail).currency)}</td>
+                        <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency((row as PaymentDetail).amount)}</td>
                         <td style={tdStyle}>{formatDate((row as PaymentDetail).payment_date)}</td>
                         <td style={{ ...tdStyle, color: 'var(--color-muted)', fontSize: '0.7rem' }}>{(row as PaymentDetail).reference_number ?? '—'}</td>
                       </>
@@ -327,7 +284,7 @@ function UnmatchedSection({ unmatchedPayments, unmatchedInvoices, loading }: {
                       <>
                         <td style={tdStyle}><span style={{ color: 'var(--color-accent)', fontWeight: 500 }}>{(row as InvoiceData).invoice_number ?? `#${row.id}`}</span></td>
                         <td style={tdStyle}>{(row as InvoiceData).customer_name ?? '—'}</td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{formatCurrency((row as InvoiceData).total_amount, (row as InvoiceData).currency)}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>{formatCurrency((row as InvoiceData).total_amount)}</td>
                         <td style={{ ...tdStyle, color: isOverdue((row as InvoiceData).due_date) ? '#f87171' : 'var(--color-text)' }}>
                           {formatDate((row as InvoiceData).due_date)}
                           {isOverdue((row as InvoiceData).due_date) && <span style={{ fontSize: '0.6rem', marginLeft: '0.3rem', color: '#f87171' }}>overdue</span>}
@@ -351,7 +308,6 @@ function UnmatchedSection({ unmatchedPayments, unmatchedInvoices, loading }: {
   );
 }
 
-
 function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: boolean }) {
   const navigate  = useNavigate();
   const [page, setPage] = useState(1);
@@ -372,6 +328,7 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
           View all <IconArrowRight />
         </button>
       </div>
+
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2.5rem' }}><Spinner /></div>
       ) : matches.length === 0 ? (
@@ -402,7 +359,7 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
                       </div>
                       <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '0.1rem' }}>
                         {timeAgo(m.created_at)}
-                        {m.matched_amount ? <span style={{ marginLeft: '0.5rem', color: cfg.text, fontWeight: 500 }}>{formatCurrency(m.matched_amount, m.currency)}</span> : null}
+                        {m.matched_amount ? <span style={{ marginLeft: '0.5rem', color: cfg.text, fontWeight: 500 }}>{formatCurrency(m.matched_amount)}</span> : null}
                       </p>
                     </div>
                   </div>
@@ -417,7 +374,6 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
     </div>
   );
 }
-
 
 function QuickActions() {
   const navigate = useNavigate();
@@ -447,42 +403,34 @@ function QuickActions() {
     </div>
   );
 }
-
-
 function DiscrepanciesPanel() {
-  const [items, setItems]           = useState<Discrepancy[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [expanded, setExpanded]     = useState<number | null>(null);
-  const [showResolved, setShowResolved] = useState(false);
-  const [page, setPage]             = useState(1);
+  const [items, setItems]       = useState<Discrepancy[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [page, setPage]         = useState(1);
 
-  const load = async (includeResolved: boolean) => {
+  const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axiosInstance.get(
-        `/api/v1/payment_intake_matching/matching/dashboard/discrepancies?include_resolved=${includeResolved}`
-      );
-      setItems(res.data);
-    } catch {
-      setError('Could not load discrepancies.');
+      const data = await agingConfigService.getDiscrepancies(false);
+      setItems(data as unknown as Discrepancy[]);
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(showResolved); }, [showResolved]);
+  useEffect(() => { load(); }, []);
 
-  const handleToggle = () => { setShowResolved(r => !r); setPage(1); setExpanded(null); };
-
-  const openCount     = items.filter(d => !d.is_resolved).length;
-  const resolvedCount = items.filter(d => d.is_resolved).length;
-  const paged         = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const openCount = items.filter(d => !d.is_resolved).length;
+  const paged     = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden' }}>
-    
+
       <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.625rem', background: 'var(--color-surface-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171', fontSize: '0.75rem' }}>⚠</div>
@@ -492,26 +440,12 @@ function DiscrepanciesPanel() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        
-          {!loading && (
-            <>
-              {openCount > 0 && (
-                <span style={{ padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>
-                  {openCount} open
-                </span>
-              )}
-              {resolvedCount > 0 && (
-                <span style={{ padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
-                  {resolvedCount} resolved
-                </span>
-              )}
-            </>
+          {!loading && openCount > 0 && (
+            <span style={{ padding: '0.15rem 0.55rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>
+              {openCount} open
+            </span>
           )}
-          <button onClick={handleToggle}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.65rem', borderRadius: 7, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif', border: showResolved ? '1px solid rgba(52,211,153,0.35)' : '1px solid var(--color-border)', background: showResolved ? 'rgba(52,211,153,0.08)' : 'var(--color-surface)', color: showResolved ? '#34d399' : 'var(--color-muted)', transition: 'all 0.15s' }}>
-            <IconResolved /> {showResolved ? 'Hide resolved' : 'Show resolved'}
-          </button>
-          <button onClick={() => load(showResolved)}
+          <button onClick={() => load()}
             style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 7, padding: '0.35rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex' }}
             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-text)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-muted)'}
@@ -520,6 +454,7 @@ function DiscrepanciesPanel() {
           </button>
         </div>
       </div>
+
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem' }}>
           <Spinner size={16} color="#f87171" />
@@ -537,38 +472,32 @@ function DiscrepanciesPanel() {
         <>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {paged.map((item, i) => {
-              const isResolved = item.is_resolved;
-              const color  = isResolved ? '#34d399' : (item.match_status === 'FAILED' ? '#f87171' : '#fbbf24');
-              const bg     = isResolved ? 'rgba(52,211,153,0.06)' : (item.match_status === 'FAILED' ? 'rgba(248,113,113,0.06)' : 'rgba(251,191,36,0.06)');
-              const border = isResolved ? 'rgba(52,211,153,0.15)' : (item.match_status === 'FAILED' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)');
+              const color  = item.match_status === 'FAILED' ? '#f87171' : '#fbbf24';
+              const bg     = item.match_status === 'FAILED' ? 'rgba(248,113,113,0.06)' : 'rgba(251,191,36,0.06)';
+              const border = item.match_status === 'FAILED' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)';
               const isOpen = expanded === item.id;
 
               return (
-                <div key={item.id} style={{ borderBottom: i < paged.length - 1 ? '1px solid var(--color-border)' : 'none', opacity: isResolved ? 0.75 : 1 }}>
+                <div key={item.id} style={{ borderBottom: i < paged.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
                   <div onClick={() => setExpanded(isOpen ? null : item.id)}
                     style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.875rem 1.25rem', cursor: 'pointer', background: isOpen ? bg : 'transparent', transition: 'background 0.15s' }}
                     onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'; }}
                     onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexShrink: 0 }}>
-                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: 99, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', background: `${color}18`, color, border: `1px solid ${color}33` }}>
-                        {item.match_status}
-                      </span>
-                      {isResolved && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: '0.12rem 0.4rem', borderRadius: 99, fontSize: '0.55rem', fontWeight: 700, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
-                          <IconResolved /> Resolved
-                        </span>
-                      )}
-                    </div>
+                    <span style={{ padding: '0.15rem 0.5rem', borderRadius: 99, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', background: `${color}18`, color, border: `1px solid ${color}33`, flexShrink: 0 }}>
+                      {item.match_status}
+                    </span>
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.payer_name ?? item.payer_email ?? 'Unknown payer'}
                         {item.invoice_no && <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}> · {item.invoice_no}</span>}
                       </p>
-                      <p style={{ fontSize: '0.68rem', color: isResolved ? '#34d399' : 'var(--color-muted)', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {isResolved && item.resolved_reason ? `✓ ${item.resolved_reason}` : (item.match_reason ?? '—')}
+                      <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.match_reason ?? '—'}
                       </p>
                     </div>
+
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text)' }}>
                         {item.payment_amount != null ? formatCurrency(item.payment_amount, item.currency) : '—'}
@@ -577,6 +506,7 @@ function DiscrepanciesPanel() {
                         {item.paid_date ? new Date(item.paid_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
                       </p>
                     </div>
+
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                       style={{ flexShrink: 0, color: 'var(--color-muted)', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
                       <polyline points="9 18 15 12 9 6"/>
@@ -585,19 +515,7 @@ function DiscrepanciesPanel() {
 
                   {isOpen && (
                     <div style={{ padding: '0.75rem 1.25rem 1.125rem', background: bg, borderTop: `1px solid ${border}` }}>
-                    
-                      {isResolved && item.resolved_reason && (
-                        <div style={{ marginBottom: '0.875rem', padding: '0.625rem 0.875rem', background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8, display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                          <span style={{ color: '#34d399', flexShrink: 0, marginTop: '0.1rem' }}><IconResolved /></span>
-                          <div>
-                            <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#34d399', fontWeight: 700, marginBottom: '0.25rem' }}>RESOLVED</p>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--color-text)', lineHeight: 1.6 }}>{item.resolved_reason}</p>
-                          </div>
-                        </div>
-                      )}
-                      <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color, marginBottom: '0.4rem' }}>
-                        {isResolved ? 'Original Reason' : 'Reason'}
-                      </p>
+                      <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color, marginBottom: '0.4rem' }}>Reason</p>
                       <p style={{ fontSize: '0.78rem', color: 'var(--color-text)', lineHeight: 1.65 }}>
                         {item.match_reason ?? 'No reason recorded.'}
                       </p>
@@ -636,34 +554,33 @@ function DiscrepanciesPanel() {
 
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const { summary, recentMatches, loading, error } = useAppSelector(s => s.dashboard);
   const { unmatchedPayments, unmatchedInvoices }    = useAppSelector(s => s.matching);
 
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing]   = useState(false);
 
-  const fetchAll = (silent = false) => {
-    if (silent) setRefreshing(true);
+  const fetchAll = useCallback((silent = false) => {
+    if (silent) setTimeout(() => setRefreshing(true), 0);
     dispatch(fetchDashboardSummaryThunk());
     dispatch(fetchRecentMatchesThunk());
     dispatch(fetchUnmatchedPaymentsThunk());
     dispatch(fetchUnmatchedInvoicesThunk());
-    setLastRefresh(new Date());
+    setTimeout(() => setLastRefresh(new Date()), 0);
     if (silent) setTimeout(() => setRefreshing(false), 1000);
-  };
+  }, [dispatch]);
 
-  useEffect(() => { fetchAll(); }, [dispatch]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
   useEffect(() => {
     const t = setInterval(() => fetchAll(true), 60000);
     return () => clearInterval(t);
-  }, []);
+  }, [fetchAll]);
 
   const totalUnmatched = unmatchedPayments.length + unmatchedInvoices.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1200 }}>
-     
+   
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', marginBottom: '0.35rem' }}>Overview</p>

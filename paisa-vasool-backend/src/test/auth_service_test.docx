@@ -1,0 +1,131 @@
+📄 PaisaVasool Auth Service — Test Documentation
+
+
+1. Overview
+
+This document defines test cases for the Auth Service, covering:
+
+Health endpoints
+Authentication flows
+Admin operations
+Validation rules
+
+Each test validates input, behavior, and expected responses.
+
+2. Health Check Endpoints
+2.1 GET /health
+
+Liveness check — verifies the service is running.
+
+Field	Value
+Method	GET
+URL	/health
+Auth Required	No
+Expected Status	200 OK
+Expected Response	{ "status": "ok" }
+2.2 GET /health/ready
+
+Readiness check — verifies database connectivity.
+
+Scenario	Expected Status	Expected Response
+DB connected	200 OK	{ "status": "ok", "checks": { "postgres": "ok" } }
+DB unreachable	200 OK	{ "status": "degraded", "checks": { "postgres": "error" } }
+3. Authentication Endpoints
+3.1 POST /register
+
+Registers a new user.
+
+Scenario	Input	Expected Status	Expected Response
+Valid registration	Valid email, phone, password	200	{ "message": "User registered successfully" }
+Email already exists	Duplicate email	400	{ "detail": "Email already exists" }
+Phone already exists	Duplicate phone	400	{ "detail": "Phone number already exists" }
+Invalid phone	Incorrect format	422	Validation error
+Weak password	Missing rules	422	Validation error
+3.2 POST /login
+
+Authenticates user and returns access token.
+
+Scenario	Input	Expected Status	Expected Response
+Valid credentials	Email + password	200	access_token, user_id, email, role
+User not found	Invalid email	401	{ "detail": "Invalid credentials" }
+Wrong password	Incorrect password	401	{ "detail": "Invalid credentials" }
+Missing fields	Empty input	422	Validation error
+3.3 GET /auth/me
+
+Returns authenticated user details.
+
+Scenario	Expected Status	Expected Response
+Valid token	200	{ "user_id": ..., "email": ..., "role": ... }
+No token	401/403	Unauthorized
+Expired token	401/403	Unauthorized
+3.4 POST /logout
+
+Logs out user by invalidating session.
+
+Scenario	Expected Status	Expected Response
+Valid session	200	{ "message": "Logged out successfully" }
+No cookie	401	{ "detail": "Already logged out or session expired." }
+Invalid cookie	403	{ "detail": "Invalid session" }
+3.5 POST /refresh
+
+Generates new access token using refresh token.
+
+Scenario	Expected Status	Expected Response
+Valid token	200	{ "access_token": ..., "token_type": "bearer" }
+No cookie	403	{ "detail": "Session expired" }
+Revoked token	403	{ "detail": "Session revoked" }
+Invalid token	403	{ "detail": "Invalid session" }
+4. Admin Endpoints
+4.1 GET /admin/users
+
+Fetch all non-admin users.
+
+Scenario	Expected Status	Expected Response
+Admin access	200	List of users
+Non-admin	403	Forbidden
+No token	401	Unauthorized
+4.2 POST /admin/users
+
+Create new user (admin only).
+
+Scenario	Expected Status	Expected Response
+Valid request	200	User object
+Duplicate email	400	{ "detail": "Email exists" }
+Duplicate phone	400	{ "detail": "Phone exists" }
+Non-admin	403	Forbidden
+4.3 PATCH /admin/users/{user_id}/toggle-status
+
+Toggle user active/inactive status.
+
+Scenario	Expected Status	Expected Response
+Valid request	200	Updated user
+User not found	404	{ "detail": "User not found" }
+Non-admin	403	Forbidden
+5. Validation Rules
+5.1 Password Rules
+Rule	Example Fail
+Minimum 6 characters	abc
+At least one lowercase	ABC123!
+At least one uppercase	abc123!
+At least one number	Abcdef!
+At least one special char	Abcdef1
+5.2 Phone Number Rules
+Input	Valid
+9080014226	Yes
+1234567890	No
+90800	No
+90800142261	No
+6. Notes
+Authentication required endpoints must include Bearer token
+Refresh token is stored in HttpOnly cookie
+Admin endpoints require role = admin
+/seed-admin must be executed before admin tests
+/health/ready depends on database availability
+What you achieved with this
+
+Compared to your original doc:
+
+✅Cleaner structure
+✅ Consistent formatting
+✅ Easier for reviewers
+✅ Matches your API Gateway doc style

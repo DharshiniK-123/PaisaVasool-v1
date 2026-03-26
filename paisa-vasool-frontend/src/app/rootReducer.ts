@@ -6,7 +6,7 @@ import paymentReducer from '../features/payments/slices/paymentSlice';
 import matchingReducer from '../features/matching/slices/matchingSlice';
 import reminderReducer from '../features/reminders/slices/reminderSlice';
 import dashboardReducer from '../features/dashboard/slices/dashboardSlice';
-import uploadProgressReducer from '../features/documents/slices/Uploadprogresslice';
+import uploadProgressReducer from '../features/documents/slices/UploadProgressSlice';
 const rootReducer = combineReducers({
       auth: authReducer,
       documents: documentReducer,

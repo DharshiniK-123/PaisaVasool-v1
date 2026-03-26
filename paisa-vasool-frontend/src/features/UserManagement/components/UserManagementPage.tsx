@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminService } from '../services/adminService';
 import type { FinanceUser, CreateUserPayload } from '../types';
+import { extractErrorMessage } from '../../../utils/errorUtils';
 
 
 const IconUsers = () => (
@@ -43,6 +44,7 @@ function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; 
   );
 }
 
+/* ── Confirm Dialog ── */
 function ConfirmDialog({
   user,
   onConfirm,
@@ -80,6 +82,7 @@ function ConfirmDialog({
         boxShadow: '0 24px 64px rgba(15,40,90,0.18)',
         animation: 'popIn 0.2s var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) both',
       }}>
+        {/* Icon */}
         <div style={{
           width: 48, height: 48, borderRadius: 12, marginBottom: '1.25rem',
           background: bgColor, border: `1px solid ${borderColor}`,
@@ -142,6 +145,7 @@ function ConfirmDialog({
   );
 }
 
+/* ── Create User Drawer ── */
 type FormErrors = Partial<Record<keyof CreateUserPayload, string>>;
 const emptyForm: CreateUserPayload = { first_name: '', last_name: '', email: '', phone_no: '', password: '' };
 
@@ -158,7 +162,7 @@ function validateForm(form: CreateUserPayload): FormErrors {
   else if (!/[a-z]/.test(form.password)) errs.password = 'Must contain a lowercase letter';
   else if (!/[A-Z]/.test(form.password)) errs.password = 'Must contain an uppercase letter';
   else if (!/[0-9]/.test(form.password)) errs.password = 'Must contain a number';
-  else if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>/?~]/.test(form.password)) errs.password = 'Must contain a special character';
+  else if (!/[!@#$%^&*()_+\-=[\]{}|;:,.<>/?~]/.test(form.password)) errs.password = 'Must contain a special character';
   return errs;
 }
 
@@ -182,8 +186,8 @@ function CreateUserDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
       const created = await adminService.createUser(form);
       onCreated(created);
       onClose();
-    } catch (err: any) {
-      setApiError(err?.response?.data?.detail ?? 'Failed to create user. Please try again.');
+    } catch (err: unknown) {
+      setApiError(extractErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -215,6 +219,7 @@ function CreateUserDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
         boxShadow: '-12px 0 48px rgba(15,40,90,0.12)',
         animation: 'slideInRight 0.32s cubic-bezier(0.16,1,0.3,1) both',
       }}>
+        {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-surface-2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--color-accent-soft)', border: '1px solid rgba(37,99,235,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}>
@@ -230,6 +235,7 @@ function CreateUserDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
           </button>
         </div>
 
+        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {apiError && (
             <div className="banner banner-error animate-fade-in">
@@ -281,6 +287,7 @@ function CreateUserDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         </div>
 
+        {/* Footer */}
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-2)', display: 'flex', gap: '0.75rem' }}>
           <button onClick={onClose} style={{ flex: 1, padding: '0.65rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-muted)', fontSize: '0.875rem', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}>
             Cancel
@@ -299,6 +306,7 @@ function CreateUserDrawer({ onClose, onCreated }: { onClose: () => void; onCreat
   );
 }
 
+/* ── User Row ── */
 function UserRow({
   user,
   onToggle,
@@ -329,6 +337,7 @@ function UserRow({
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
     >
+      {/* User info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <div style={{
           width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
@@ -348,8 +357,10 @@ function UserRow({
         </div>
       </div>
 
+      {/* Phone */}
       <p style={{ fontSize: '0.82rem', color: 'var(--color-muted)', fontWeight: 500 }}>{user.phone_no}</p>
 
+      {/* Status badge */}
       <span style={{
         display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
         padding: '0.2rem 0.65rem', borderRadius: 99,
@@ -363,8 +374,10 @@ function UserRow({
         {isActive ? 'Active' : 'Inactive'}
       </span>
 
+      {/* Joined */}
       <p style={{ fontSize: '0.75rem', color: 'var(--color-faint)', textAlign: 'right' }}>{joinedDate}</p>
 
+      {/* Toggle button */}
       <button
         onClick={() => onToggle(user)}
         disabled={toggling}
@@ -398,6 +411,7 @@ function UserRow({
   );
 }
 
+/* ── Main Page ── */
 export default function UserManagementPage() {
   const [users, setUsers] = useState<FinanceUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -414,8 +428,8 @@ export default function UserManagementPage() {
     try {
       const data = await adminService.listUsers();
       setUsers(data);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail ?? 'Failed to load users.');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -438,8 +452,8 @@ export default function UserManagementPage() {
       const action = updated.is_active === 'active' ? 'activated' : 'deactivated';
       setSuccessMsg(`${updated.first_name} ${updated.last_name} has been ${action}.`);
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail ?? 'Failed to update user status.');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err));
     } finally {
       setToggling(null);
       setConfirmUser(null);
@@ -487,14 +501,18 @@ export default function UserManagementPage() {
           </div>
         ))}
       </div>
+
+      {/* Banners */}
       {error && <div className="banner banner-error animate-fade-in"><span className="banner-icon">⚠</span><p>{error}</p></div>}
       {successMsg && <div className="banner banner-success animate-fade-in"><span className="banner-icon">✓</span><p>{successMsg}</p></div>}
 
+      {/* Table card */}
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
 
+        {/* Toolbar */}
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', background: 'var(--color-surface-2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, flexWrap: 'wrap' }}>
-
+            {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.45rem 0.75rem', minWidth: 220 }}>
               <span style={{ color: 'var(--color-muted)', display: 'flex' }}><IconSearch /></span>
               <input
@@ -505,6 +523,7 @@ export default function UserManagementPage() {
               {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex' }}><IconClose /></button>}
             </div>
 
+            {/* Status filter pills */}
             <div style={{ display: 'flex', gap: '0.35rem' }}>
               {(['all', 'active', 'inactive'] as const).map(f => (
                 <button
@@ -543,6 +562,7 @@ export default function UserManagementPage() {
           ))}
         </div>
 
+        {/* Rows */}
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem' }}><Spinner /></div>
         ) : filtered.length === 0 ? (
@@ -568,6 +588,7 @@ export default function UserManagementPage() {
           ))
         )}
 
+        {/* Footer count */}
         {!loading && filtered.length > 0 && (
           <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
             <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>
@@ -577,6 +598,7 @@ export default function UserManagementPage() {
         )}
       </div>
 
+      {/* Drawers & dialogs */}
       {drawerOpen && <CreateUserDrawer onClose={() => setDrawerOpen(false)} onCreated={handleCreated} />}
       {confirmUser && (
         <ConfirmDialog

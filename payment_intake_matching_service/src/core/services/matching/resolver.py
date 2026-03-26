@@ -7,7 +7,17 @@ def resolve_match(
     remaining_pay: Decimal,
     inv_remaining: Decimal,
 ) -> tuple[str, Decimal, Decimal]:
- 
+    """
+    Determines match status and amounts.
+
+    Returns:
+        (match_status, matched_amount, amount_pending)
+
+    Rules:
+        OVERPAYMENT  — payment exceeds invoice beyond rounding tolerance
+        FULL         — payment covers invoice (including within tolerance)
+        PARTIAL      — payment is less than invoice outstanding
+    """
     diff = abs(remaining_pay - inv_remaining)
 
     if remaining_pay > inv_remaining + MATCHING_CONFIG.rounding_tolerance:
@@ -30,7 +40,8 @@ def build_status_sentence(
     converted:      bool           = False,
     fx_rate:        Decimal | None = None,
 ) -> str:
-   
+    """Builds the human-readable outcome sentence appended to match_reason."""
+
     if match_status == "FULL":
         if converted and fx_rate:
             return (

@@ -1,31 +1,19 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {fetchMatchesThunk,fetchDiscrepanciesThunk,fetchUnmatchedPaymentsThunk,fetchUnmatchedInvoicesThunk,setRefreshing,} from '../slices/matchingSlice';
-import type { DiscrepancyRecord } from '../types/Match';
+import {
+  fetchMatchesThunk,
+  fetchDiscrepanciesThunk,
+  fetchUnmatchedPaymentsThunk,
+  fetchUnmatchedInvoicesThunk,
+  setRefreshing,
+} from '../slices/matchingSlice';
 
-type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'FAILED';
-
-type MatchRecord = {
-  id: number;
-  payment_detail_id: number;
-  invoice_id: number;
-  match_status: MatchStatus;
-  matched_amount?: number | null;
-  amount_pending?: number | null;
-  match_notes?: string | null;
-  match_reason?: string | null;
-  currency?: string | null;
-  is_resolved?: boolean;
-  resolved_reason?: string | null;
-  created_at: string;
-  [key: string]: unknown;
-};
+import type { MatchStatus, MatchRecord } from '../types/Match';
 
 type PaymentDetail = {
   id: number;
   amount?: number | null;
-  currency?: string | null;
   payer_name?: string | null;
   payment_date?: string | null;
   reference_number?: string | null;
@@ -43,7 +31,6 @@ type InvoiceData = {
   customer_name?: string | null;
   total_amount?: number | null;
   paid_amount?: number | null;
-  currency?: string | null;
   due_date?: string | null;
   invoice_date?: string | null;
   payment_status?: string | null;
@@ -87,6 +74,7 @@ const STATUS_CONFIG: Record<MatchStatus, { label: string; icon: React.ReactNode;
   FULL:        { label: 'Fully Paid',  icon: <IconCheck />,   bg: 'rgba(52,211,153,0.08)',  text: '#34d399', border: 'rgba(52,211,153,0.25)',  headerBg: 'rgba(52,211,153,0.06)'  },
   PARTIAL:     { label: 'Partial',     icon: <IconPartial />, bg: 'rgba(251,191,36,0.08)',  text: '#fbbf24', border: 'rgba(251,191,36,0.25)',  headerBg: 'rgba(251,191,36,0.06)'  },
   OVERPAYMENT: { label: 'Overpayment', icon: <IconOver />,    bg: 'rgba(139,92,246,0.08)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  headerBg: 'rgba(139,92,246,0.06)'  },
+  DUPLICATE:   { label: 'Duplicate',   icon: <IconAlert />,   bg: 'rgba(251,146,60,0.08)',  text: '#fb923c', border: 'rgba(251,146,60,0.25)', headerBg: 'rgba(251,146,60,0.06)' },
   FAILED:      { label: 'Failed',      icon: <IconFailed />,  bg: 'rgba(248,113,113,0.08)', text: '#f87171', border: 'rgba(248,113,113,0.25)', headerBg: 'rgba(248,113,113,0.06)' },
 };
 
@@ -120,11 +108,9 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
 }
-function formatCurrency(val?: number | null, currency?: string | null) {
+function formatCurrency(val?: number | null, currency?: string) {
   if (val == null) return '—';
-  const cur = (currency ?? 'INR').toUpperCase().trim();
-  const locale = cur === 'INR' ? 'en-IN' : 'en-US';
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: cur, maximumFractionDigits: 2 }).format(val);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 0 }).format(val);
 }
 function formatDate(str?: string | null) {
   if (!str) return '—';
@@ -245,7 +231,7 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
       } finally { setLoading(false); }
     };
     fetchDetails();
-  }, [match.id]);
+  }, [match.id, match.invoice_id, match.payment_detail_id]);
 
   const cfg = STATUS_CONFIG[match.match_status] ?? STATUS_CONFIG.FAILED;
   const isResolved = match.is_resolved === true;
@@ -301,9 +287,9 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
             </div>
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', marginBottom: '0.3rem' }}>MATCHED AMOUNT</p>
-              <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: isResolved ? '#34d399' : cfg.text, lineHeight: 1 }}>{formatCurrency(match.matched_amount, match.currency)}</p>
+              <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: isResolved ? '#34d399' : cfg.text, lineHeight: 1 }}>{formatCurrency(match.matched_amount)}</p>
               {match.amount_pending != null && match.amount_pending !== 0 && !isResolved && (
-                <p style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '0.3rem', fontWeight: 600 }}>Δ {formatCurrency(match.amount_pending, match.currency)} discrepancy</p>
+                <p style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '0.3rem', fontWeight: 600 }}>Δ {formatCurrency(match.amount_pending)} discrepancy</p>
               )}
             </div>
           </div>
@@ -335,7 +321,7 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
                   <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <div>
                       <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.45rem' }}>INVOICE AMOUNT</p>
-                      <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{formatCurrency(invoice.total_amount, invoice.currency)}</p>
+                      <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{formatCurrency(invoice.total_amount)}</p>
                       {invoice.invoice_date && <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)', marginTop: '0.4rem' }}>issued {formatDate(invoice.invoice_date)}</p>}
                     </div>
                     <InvoiceStatusBadge status={invoice.payment_status} />
@@ -344,7 +330,7 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
                     <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                         <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Payment progress</span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(invoice.paid_amount, invoice.currency)} / {formatCurrency(invoice.total_amount, invoice.currency)}</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>{formatCurrency(invoice.paid_amount)} / {formatCurrency(invoice.total_amount)}</span>
                       </div>
                       <PaymentProgress paid={invoice.paid_amount} total={invoice.total_amount} />
                     </div>
@@ -354,8 +340,8 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
                     {invoice.customer_name  && <Row icon={<IconUser />}     label="Customer"   value={invoice.customer_name} />}
                     {invoice.customer_email && <Row icon={<IconMail />}     label="Email"      value={invoice.customer_email} />}
                     {invoice.customer_phone && <Row icon={<IconPhone />}    label="Phone"      value={invoice.customer_phone} />}
-                    {invoice.total_amount   != null && <Row icon={<IconCurrency />} label="Total"  value={formatCurrency(invoice.total_amount, invoice.currency)} accent />}
-                    {invoice.paid_amount    != null && <Row icon={<IconCurrency />} label="Paid"   value={formatCurrency(invoice.paid_amount, invoice.currency)} accent />}
+                    {invoice.total_amount   != null && <Row icon={<IconCurrency />} label="Total"  value={formatCurrency(invoice.total_amount)} accent />}
+                    {invoice.paid_amount    != null && <Row icon={<IconCurrency />} label="Paid"   value={formatCurrency(invoice.paid_amount)} accent />}
                     {invoice.due_date       && <Row icon={<IconCalendar />} label="Due Date"   value={formatDate(invoice.due_date)} />}
                   </div>
                 </section>
@@ -367,7 +353,7 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
                   <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <div>
                       <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.45rem' }}>AMOUNT RECEIVED</p>
-                      <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{formatCurrency(payment.amount, payment.currency)}</p>
+                      <p className="font-display" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{formatCurrency(payment.amount)}</p>
                       {payment.payment_date && <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)', marginTop: '0.4rem' }}>on {formatDate(payment.payment_date)}</p>}
                     </div>
                     <ModeBadge mode={payment.payment_mode} />
@@ -384,7 +370,7 @@ function DetailDrawer({ match, onClose }: { match: MatchRecord; onClose: () => v
                   )}
                   <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>TRANSACTION</p>
                   <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0 0.875rem' }}>
-                    {payment.amount           != null && <Row icon={<IconCurrency />} label="Amount"    value={formatCurrency(payment.amount, payment.currency)} accent />}
+                    {payment.amount           != null && <Row icon={<IconCurrency />} label="Amount"    value={formatCurrency(payment.amount)} accent />}
                     {payment.payment_date     && <Row icon={<IconCalendar />} label="Date"      value={formatDate(payment.payment_date)} />}
                     {payment.reference_number && <Row icon={<IconHash />}     label="Reference" value={payment.reference_number} />}
                     {payment.bank_name        && <Row icon={<IconBank />}     label="Bank"      value={payment.bank_name} />}
@@ -445,10 +431,10 @@ function MatchCard({ match, onSelect, index, cache }: { match: MatchRecord; onSe
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.1rem' }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount, match.currency)}</span>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount)}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           {match.amount_pending != null && match.amount_pending !== 0 && (
-            <span style={{ fontSize: '0.63rem', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 99, padding: '0.1rem 0.45rem' }}>Δ {formatCurrency(match.amount_pending, match.currency)}</span>
+            <span style={{ fontSize: '0.63rem', color: '#f87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 99, padding: '0.1rem 0.45rem' }}>Δ {formatCurrency(match.amount_pending)}</span>
           )}
           <span style={{ fontSize: '0.63rem', color: cfg.text, fontWeight: 600, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 99, padding: '0.1rem 0.55rem' }}>View →</span>
         </div>
@@ -472,7 +458,7 @@ function BucketColumn({ status, matches, onSelect, cache }: { status: MatchStatu
       </div>
       {matches.length > 0 && (
         <div style={{ padding: '0.45rem 1rem', borderBottom: '1px solid var(--color-border)', fontSize: '0.67rem', color: 'var(--color-muted)', display: 'flex', justifyContent: 'space-between', flexShrink: 0, background: 'var(--color-surface-2)' }}>
-          <span>Total matched</span><span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency(totalAmount, matches[0]?.currency)}</span>
+          <span>Total matched</span><span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency(totalAmount)}</span>
         </div>
       )}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
@@ -513,7 +499,7 @@ function MatchTableRow({ match, onSelect, index, cache }: { match: MatchRecord; 
           {payerRef && <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '0.1rem', fontFamily: 'monospace' }}>Ref: {payerRef}</p>}
         </div>
       </td>
-      <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount, match.currency)}</td>
+      <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(match.matched_amount)}</td>
       <td style={{ ...tdStyle, color: 'var(--color-muted)' }}>
         <div>
           <p>{timeAgo(match.created_at)}</p>
@@ -532,17 +518,14 @@ function MatchTableRow({ match, onSelect, index, cache }: { match: MatchRecord; 
 function DiscrepanciesTab() {
   const dispatch = useAppDispatch();
   const { discrepancies, discrepanciesLoading } = useAppSelector(s => s.matching);
-  const [showResolved, setShowResolved] = useState(false);
   const [search, setSearch]             = useState('');
   const [page, setPage]                 = useState(1);
   const [pageSize, setPageSize]         = useState(25);
   const [selectedDisc, setSelectedDisc] = useState<MatchRecord | null>(null);
 
   useEffect(() => {
-    dispatch(fetchDiscrepanciesThunk(showResolved));
-  }, [dispatch, showResolved]);
-
-  useEffect(() => { setPage(1); }, [search, showResolved]);
+    dispatch(fetchDiscrepanciesThunk(false));
+  }, [dispatch]);
 
   const filtered = discrepancies.filter(d => {
     if (!search) return true;
@@ -558,7 +541,6 @@ function DiscrepanciesTab() {
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const unresolvedCount = discrepancies.filter(d => !d.is_resolved).length;
-  const resolvedCount   = discrepancies.filter(d => d.is_resolved).length;
 
   const thStyle: React.CSSProperties = {
     padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.6rem', fontWeight: 600,
@@ -575,36 +557,17 @@ function DiscrepanciesTab() {
           <IconAlert />
           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f87171' }}>{unresolvedCount} Open</span>
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.875rem', borderRadius: 10, background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.2)' }}>
-          <IconResolved />
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#34d399' }}>{resolvedCount} Resolved</span>
-        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '0.55rem 0.875rem', flex: '1 1 200px', maxWidth: 300 }}>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}><IconSearch /></span>
-          <input type="text" placeholder="Search invoice, payer, reason…" value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search invoice, payer, reason…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--color-text)', fontSize: '0.78rem', fontFamily: 'Outfit, sans-serif', flex: 1, minWidth: 0 }} />
-          {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', padding: 0 }}><IconClose /></button>}
+          {search && <button onClick={() => { setSearch(''); setPage(1); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', padding: 0 }}><IconClose /></button>}
         </div>
 
-        <button
-          onClick={() => setShowResolved(r => !r)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.45rem 0.875rem', borderRadius: 8, cursor: 'pointer',
-            fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Outfit, sans-serif',
-            border: showResolved ? '1px solid rgba(52,211,153,0.35)' : '1px solid var(--color-border)',
-            background: showResolved ? 'rgba(52,211,153,0.08)' : 'var(--color-surface)',
-            color: showResolved ? '#34d399' : 'var(--color-muted)',
-            transition: 'all 0.15s',
-          }}
-        >
-          <IconResolved /> {showResolved ? 'Hiding resolved' : 'Show resolved'}
-        </button>
-
-        <button onClick={() => dispatch(fetchDiscrepanciesThunk(showResolved))}
+        <button onClick={() => dispatch(fetchDiscrepanciesThunk(false))}
           style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer', color: 'var(--color-muted)', fontSize: '0.7rem', fontFamily: 'Outfit, sans-serif', transition: 'all 0.15s' }}>
           {discrepanciesLoading ? <Spinner size={13} /> : <IconRefresh />}
         </button>
@@ -616,9 +579,9 @@ function DiscrepanciesTab() {
         ) : filtered.length === 0 ? (
           <div style={{ padding: '3.5rem', textAlign: 'center' }}>
             <p style={{ fontSize: '0.82rem', color: 'var(--color-muted)', marginBottom: '0.3rem' }}>
-              {search ? 'No results found' : unresolvedCount === 0 ? '🎉 No open discrepancies!' : 'No records'}
+              {search ? 'No results found' : '🎉 No open discrepancies!'}
             </p>
-            {!search && unresolvedCount === 0 && (
+            {!search && (
               <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>All discrepancies have been resolved.</p>
             )}
           </div>
@@ -639,7 +602,6 @@ function DiscrepanciesTab() {
               <tbody>
                 {paginated.map((d, i) => {
                   const dcfg = DISC_STATUS_CONFIG[d.match_status] ?? DISC_STATUS_CONFIG.FAILED;
-                  const isResolved = d.is_resolved;
                   return (
                     <tr key={d.id}
                       onClick={() => setSelectedDisc({
@@ -653,17 +615,14 @@ function DiscrepanciesTab() {
                         resolved_reason: d.resolved_reason,
                         created_at: d.created_at,
                       })}
-                      style={{ borderBottom: i < paginated.length - 1 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', transition: 'background 0.15s', opacity: isResolved ? 0.65 : 1, animation: `fadeSlideUp 0.3s var(--ease-out-expo) ${Math.min(i, 15) * 0.025}s both` }}
+                      style={{ borderBottom: i < paginated.length - 1 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', transition: 'background 0.15s', animation: `fadeSlideUp 0.3s var(--ease-out-expo) ${Math.min(i, 15) * 0.025}s both` }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                     >
                       <td style={tdStyle}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: dcfg.bg, color: dcfg.text, border: `1px solid ${dcfg.border}` }}>
-                            {dcfg.icon} {dcfg.label}
-                          </span>
-                          {isResolved && <ResolvedBadge />}
-                        </div>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: dcfg.bg, color: dcfg.text, border: `1px solid ${dcfg.border}` }}>
+                          {dcfg.icon} {dcfg.label}
+                        </span>
                       </td>
                       <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 500 }}>{d.invoice_no ?? '—'}</td>
                       <td style={tdStyle}>
@@ -676,15 +635,9 @@ function DiscrepanciesTab() {
                         {formatCurrency(d.payment_amount, d.currency)}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', maxWidth: 280 }}>
-                        {isResolved && d.resolved_reason ? (
-                          <p style={{ fontSize: '0.72rem', color: '#34d399', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            ✓ {d.resolved_reason}
-                          </p>
-                        ) : (
-                          <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {d.match_reason ?? '—'}
-                          </p>
-                        )}
+                        <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {d.match_reason ?? '—'}
+                        </p>
                       </td>
                       <td style={{ ...tdStyle, color: 'var(--color-muted)' }}>
                         <div>
@@ -693,7 +646,7 @@ function DiscrepanciesTab() {
                         </div>
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: 600, color: isResolved ? '#34d399' : dcfg.text, background: isResolved ? 'rgba(52,211,153,0.08)' : dcfg.bg, border: `1px solid ${isResolved ? 'rgba(52,211,153,0.25)' : dcfg.border}`, borderRadius: 99, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>View →</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: 600, color: dcfg.text, background: dcfg.bg, border: `1px solid ${dcfg.border}`, borderRadius: 99, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>View →</span>
                       </td>
                     </tr>
                   );
@@ -713,8 +666,6 @@ function DiscrepanciesTab() {
     </div>
   );
 }
-
-
 
 function AllMatchesTab() {
   const dispatch = useAppDispatch();
@@ -753,10 +704,16 @@ function AllMatchesTab() {
     });
   }, [matches]);
 
-  useEffect(() => { setPage(1); }, [search, activeFilters, sortDir, viewMode]);
+  useEffect(() => {
+    setTimeout(() => setPage(1), 0);
+  }, [search, activeFilters, sortDir, viewMode]);
 
   const toggleFilter = (s: MatchStatus) => {
-    setActiveFilters(prev => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; });
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
   };
 
   const counts = ALL_STATUSES.reduce((acc, s) => { acc[s] = matches.filter(m => m.match_status === s).length; return acc; }, {} as Record<MatchStatus, number>);
@@ -940,7 +897,7 @@ function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
                     {type === 'payments' ? (
                       <>
                         <td style={tdStyle}>{(row as PaymentDetail).payer_name ?? '—'}</td>
-                        <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency((row as PaymentDetail).amount, (row as PaymentDetail).currency)}</td>
+                        <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 600 }}>{formatCurrency((row as PaymentDetail).amount)}</td>
                         <td style={tdStyle}>{formatDate((row as PaymentDetail).payment_date)}</td>
                         <td style={{ ...tdStyle, color: 'var(--color-muted)', fontSize: '0.7rem', fontFamily: 'monospace' }}>{(row as PaymentDetail).reference_number ?? '—'}</td>
                       </>
@@ -948,7 +905,7 @@ function UnmatchedTab({ type }: { type: 'payments' | 'invoices' }) {
                       <>
                         <td style={{ ...tdStyle, color: 'var(--color-accent)', fontWeight: 500 }}>{(row as InvoiceData).invoice_number ?? '—'}</td>
                         <td style={tdStyle}>{(row as InvoiceData).customer_name ?? '—'}</td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{formatCurrency((row as InvoiceData).total_amount, (row as InvoiceData).currency)}</td>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>{formatCurrency((row as InvoiceData).total_amount)}</td>
                         <td style={{ ...tdStyle, color: new Date((row as InvoiceData).due_date ?? '') < new Date() ? '#f87171' : 'var(--color-text)' }}>{formatDate((row as InvoiceData).due_date)}</td>
                         <td style={tdStyle}>
                           <span style={{ padding: '0.15rem 0.5rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)', textTransform: 'uppercase' }}>
@@ -977,7 +934,6 @@ export default function MatchingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const { discrepancies } = useAppSelector(s => s.matching);
   const dispatch = useAppDispatch();
-  const dispatch2 = useAppDispatch();
 
   useEffect(() => { dispatch(fetchDiscrepanciesThunk(false)); }, [dispatch]);
 

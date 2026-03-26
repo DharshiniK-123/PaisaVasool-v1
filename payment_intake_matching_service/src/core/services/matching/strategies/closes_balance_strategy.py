@@ -1,10 +1,15 @@
 from decimal import Decimal
 
 from src.config.matching_config import MATCHING_CONFIG
+
 from .base import BaseMatchStrategy, ScoreResult
 
 
 class ClosesBalanceStrategy(BaseMatchStrategy):
+    """
+    Bonus points when a payment exactly closes the remaining
+    balance on a partially-paid invoice.
+    """
 
     def score(
         self,

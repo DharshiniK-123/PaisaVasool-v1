@@ -1,39 +1,47 @@
+from __future__ import annotations
+
 import asyncio
 import json
+import logging
 import os
 from datetime import date, datetime
+
 import pandas as pd
-from fastapi import UploadFile, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from fastapi import HTTPException, UploadFile
 from rq import Queue
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import insert as sa_insert
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from src.control.extraction.Llm_extractor import run_extraction
+from src.core.services.extraction_service import extract_text
+from src.core.services.matching import run_matching_for_payment
+from src.core.services.storage_service import save_file
+from src.core.tasks.document_task import process_document_task, process_document_task_sync
+from src.data.clients.redis_clients import get_async_redis_client, redis_connection
+from src.data.models.postgres.customer import Customer
 from src.data.models.postgres.document import Document
 from src.data.models.postgres.invoice_data import InvoiceData
+from src.data.models.postgres.matching_payment_invoice import MatchingPaymentInvoice
 from src.data.models.postgres.payment_detail import PaymentDetail
-from src.data.repositories.generic_repository import update_instance_by_id
-from src.data.repositories.document_repository import (
-    insert_document_returning_id,
-    get_invoice_by_number_and_customer,
-    insert_record_returning_id,
-    get_customer_by_email,
-    create_customer,
-    get_unmatched_payments_for_customer,
+from src.data.repositories.generic_repository import (
+    get_instance_by_any,
+    update_instance_by_id,
 )
-from src.core.services.storage_service import save_file
-from src.core.services.extraction_service import extract_text
-from src.control.extraction.Llm_extractor import run_extraction
-from src.core.services.matching import run_matching_for_payment
-from src.data.clients.redis_clients import redis_connection, redis_client
-from src.core.tasks.document_task import process_document_task, process_document_task_sync
+from src.utils.normalize import _normalize
 from src.utils.worker_trigger import trigger_worker
 
+logger = logging.getLogger(__name__)
+
 ALLOWED_EXTENSIONS = {"pdf", "csv", "xlsx", "xls", "jpg", "jpeg", "png", "gif", "webp"}
-IMAGE_TYPES        = {"jpg", "jpeg", "png", "gif", "webp"}
+IMAGE_TYPES = {"jpg", "jpeg", "png", "gif", "webp"}
 
 DATE_FIELDS = ("invoice_date", "due_date", "payment_date", "transaction_date", "paid_date")
 
 
 def _make_session():
-    engine  = create_async_engine(os.getenv("DATABASE_URL"))
+    engine = create_async_engine(str(os.getenv("DATABASE_URL")))
     factory = async_sessionmaker(bind=engine, class_=AsyncSession, autoflush=False)
     return engine, factory()
 
@@ -62,27 +70,36 @@ async def upload_document_and_enqueue(
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type '.{extension}'. Allowed: pdf, csv, xlsx, jpg, png, webp",
+            detail=f"""Unsupported file type '.{extension}'. 
+            Allowed: pdf, csv, xlsx, jpg, png, webp""",
         )
 
     storage_path, file_type, file_url = await save_file(file, document_type)
 
-    document_id = await insert_document_returning_id(
-        user_id=user_id,
-        document_type=document_type,
-        original_name=original_name,
-        file_type=file_type,
-        storage_path=storage_path,
-        db=db,
+    stmt = (
+        sa_insert(Document)
+        .values(
+            user_id=user_id,
+            document_type=document_type,
+            file_name=original_name,
+            file_type=file_type,
+            storage_path=storage_path,
+            status="PENDING",
+        )
+        .returning(Document.id)
     )
 
+    result = await db.execute(stmt)
+    await db.commit()
+    document_id = result.scalar_one()
+
     kwargs = {
-        "document_id":   document_id,
-        "storage_path":  storage_path,
-        "file_type":     file_type,
-        "file_url":      file_url,
+        "document_id": document_id,
+        "storage_path": storage_path,
+        "file_type": file_type,
+        "file_url": file_url,
         "document_type": document_type,
-        "job_id":        job_id,
+        "job_id": job_id,
     }
 
     try:
@@ -90,15 +107,19 @@ async def upload_document_and_enqueue(
             q = Queue(connection=redis_connection)
             print(q)
             print("before calling process_document_task_sync")
-            q.enqueue(
+            await asyncio.to_thread(
+                q.enqueue,
                 process_document_task_sync,
                 kwargs=kwargs,
                 job_timeout=900,
                 result_ttl=3600,
             )
+
             asyncio.create_task(trigger_worker())
+
         else:
             await process_document_task(**kwargs)
+
     except Exception:
         await process_document_task(**kwargs)
 
@@ -119,18 +140,23 @@ async def extract_document_data(
             await update_instance_by_id(document_id, Document, db, status="PROCESSING")
 
             try:
-                extracted = extract_text(storage_path, file_type, file_url)
+                extracted = await extract_text(storage_path, file_type, file_url)
             except HTTPException:
                 await update_instance_by_id(document_id, Document, db, status="FAILED")
                 raise
 
             try:
                 if file_type == "pdf" or file_type in IMAGE_TYPES:
-                    records = await _extract_single(extracted, document_type)
+                    if file_type == "pdf":
+                        records = await _extract_multi_page(extracted, document_type)
+                    else:
+                        records = await _extract_single(extracted, document_type)
                 elif file_type in ("csv", "xlsx", "xls"):
                     records = await _extract_dataframe(extracted, document_type)
                 else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported file type: {file_type}")
+                    raise HTTPException(
+                        status_code=400, detail=f"Unsupported file type: {file_type}"
+                    )
 
                 await update_instance_by_id(document_id, Document, db, status="EXTRACTED")
                 return records
@@ -138,9 +164,9 @@ async def extract_document_data(
             except HTTPException:
                 await update_instance_by_id(document_id, Document, db, status="FAILED")
                 raise
-            except Exception:
+            except Exception as e:
                 await update_instance_by_id(document_id, Document, db, status="FAILED")
-                raise HTTPException(status_code=500, detail="Extraction failed")
+                raise HTTPException(status_code=500, detail="Extraction failed") from e
     finally:
         await engine.dispose()
 
@@ -174,73 +200,145 @@ async def save_document_records(
                     )
 
                 for field in (
-                    "id", "document_id", "customer_id", "_sa_instance_state",
-                    "customer_name", "customer_email", "customer_phone",
-                    "payer_name", "payer_email", "payer_phone",
+                    "id",
+                    "document_id",
+                    "customer_id",
+                    "_sa_instance_state",
+                    "customer_name",
+                    "customer_email",
+                    "customer_phone",
+                    "payer_name",
+                    "payer_email",
+                    "payer_phone",
                 ):
                     data.pop(field, None)
 
                 model = InvoiceData if document_type == "INVOICE" else PaymentDetail
 
-                if document_type == "INVOICE":
-                    invoice_number = data.get("invoice_number")
-                    if invoice_number:
-                        existing = await get_invoice_by_number_and_customer(
-                            invoice_number, customer_id, db
-                        )
-                        if existing:
-                            raise HTTPException(
-                                status_code=409,
-                                detail=(
-                                    f"Invoice '{invoice_number}' already exists for this customer. "
-                                    "Duplicate invoices are not allowed. "
-                                    "If this is an updated invoice, please void the existing one first."
-                                ),
-                            )
-
-                inserted_id = await insert_record_returning_id(
-                    model, document_id, customer_id, db, **data
+                stmt = (
+                    sa_insert(model)
+                    .values(document_id=document_id, customer_id=customer_id, **data)
+                    .returning(model.id)
                 )
+                result = await db.execute(stmt)
+                await db.commit()
+                inserted_id = result.scalar_one()
 
                 if document_type == "PAYMENT":
                     await run_matching_for_payment(inserted_id, db)
 
-                if document_type == "INVOICE":
-                    # Re-try matching for any payments that arrived before this
-                    # invoice existed and therefore failed to match at upload time.
-                    unmatched_payments = await get_unmatched_payments_for_customer(
-                        customer_id, db
-                    )
-                    for payment in unmatched_payments:
-                        await run_matching_for_payment(payment.id, db)
+                elif document_type == "INVOICE":
+                    invoice_number = data.get("invoice_number", "")
+                    if invoice_number:
+                        await _rematch_pending_payments_for_invoice(
+                            invoice_number=invoice_number,
+                            customer_id=customer_id,
+                            db=db,
+                        )
 
                 count += 1
 
             await update_instance_by_id(document_id, Document, db, status="PARSED")
-            if redis_client:
-                redis_client.delete(f"preview:{document_id}")
+
+            try:
+                redis = get_async_redis_client()
+                await redis.delete(f"preview:{document_id}")
+                await redis.aclose()
+            except Exception as e:
+                logger.warning("redis_preview_delete_failed", extra={"error": str(e)})
 
             return count
     finally:
         await engine.dispose()
 
 
-async def _extract_single(raw_content, document_type: str) -> list[dict]:
-    results = await run_extraction(raw_content, document_type)
-    if isinstance(results, list):
-        return results
-    return [results]
+async def _rematch_pending_payments_for_invoice(
+    invoice_number: str,
+    customer_id: int,
+    db: AsyncSession,
+) -> None:
+    """
+    Called after a new invoice is saved.
+    Finds every non-deleted payment for the same customer whose invoice_no
+    matches this invoice number and that has NO successful match record yet,
+    then re-runs the matching pipeline for each such payment.
+
+    This handles the case: payment uploaded first → invoice uploaded later.
+    """
+    from src.utils.extract_multiple_invoice_nos import _extract_multiple_invoice_nos
+
+    inv_norm = _normalize(invoice_number)
+
+    result = await db.execute(
+        select(PaymentDetail).where(
+            PaymentDetail.customer_id == customer_id,
+            PaymentDetail.is_deleted.is_(False),
+        )
+    )
+    payments = result.scalars().all()
+
+    for payment in payments:
+        payment_invoice_nos = _extract_multiple_invoice_nos((payment.invoice_no or "").strip())
+        number_hit = any(
+            n == inv_norm or inv_norm in n or n in inv_norm for n in payment_invoice_nos
+        )
+        if not number_hit:
+            continue
+
+        existing = await db.execute(
+            select(MatchingPaymentInvoice).where(
+                MatchingPaymentInvoice.payment_detail_id == payment.id,
+                MatchingPaymentInvoice.match_status.in_(["FULL", "PARTIAL", "OVERPAYMENT"]),
+            )
+        )
+        if existing.scalars().first() is not None:
+            continue
+        await db.execute(
+            sa_delete(MatchingPaymentInvoice).where(
+                MatchingPaymentInvoice.payment_detail_id == payment.id,
+                MatchingPaymentInvoice.match_status == "FAILED",
+            )
+        )
+        await db.flush()
+
+        logger.info(
+            "rematch_pending_payment",
+            extra={"payment_id": payment.id, "invoice_number": invoice_number},
+        )
+        await run_matching_for_payment(int(payment.id), db)
+
+
+async def _extract_single(raw_text: str, document_type: str) -> list[dict]:
+    records = await run_extraction(raw_text, document_type)
+    return [records]
+
+
+async def _extract_multi_page(pages: list[str], document_type: str) -> list[dict]:
+    """Extract one record per PDF page, skipping pages where extraction fails."""
+    records = []
+    for i, page_text in enumerate(pages):
+        try:
+            record = await run_extraction(page_text, document_type)
+            records.append(record)
+        except HTTPException as e:
+            logger.warning(
+                "pdf_page_extraction_skipped",
+                extra={"page_index": i, "detail": e.detail},
+            )
+    if not records:
+        raise HTTPException(
+            status_code=422,
+            detail="No valid invoice data could be extracted from any page of the PDF.",
+        )
+    return records
 
 
 async def _extract_dataframe(df: pd.DataFrame, document_type: str) -> list[dict]:
     records = []
     for row in df.to_dict(orient="records"):
-        text   = json.dumps(row, default=str)
+        text = json.dumps(row, default=str)
         result = await run_extraction(text, document_type)
-        if isinstance(result, list):
-            records.extend(result)
-        else:
-            records.append(result)
+        records.append(result)
     return records
 
 
@@ -269,17 +367,21 @@ async def _resolve_customer(
             ),
         )
 
-    existing = await get_customer_by_email(email, db)
+    existing = await get_instance_by_any(Customer, db, {"email": email})
     if existing:
-        return existing.id
+        return int(existing.id)
 
     if document_type == "INVOICE":
-        created = await create_customer(
-            name=name or email.split("@")[0],
+        from src.data.repositories.generic_repository import insert_instance
+
+        await insert_instance(
+            Customer,
+            db,
+            name=name or (email or "").split("@")[0],
             email=email,
-            db=db,
         )
-        return created.id
+        created = await get_instance_by_any(Customer, db, {"email": email})
+        return int(created.id)
 
     raise HTTPException(
         status_code=422,

@@ -2,10 +2,15 @@ from decimal import Decimal
 
 from src.config.matching_config import MATCHING_CONFIG
 from src.utils.normalize import _normalize
+
 from .base import BaseMatchStrategy, ScoreResult
 
 
 class InvoiceNumberStrategy(BaseMatchStrategy):
+    """
+    Scores based on how well the invoice number matches
+    the payment reference. No match at all = hard disqualify.
+    """
 
     def score(
         self,
@@ -39,7 +44,8 @@ class InvoiceNumberStrategy(BaseMatchStrategy):
                 ],
                 passed=True,
             )
-        
+
+        # No number match at all — hard disqualify, skip remaining strategies
         return ScoreResult(
             points=0,
             reasons=[

@@ -1,4 +1,9 @@
 .env
 *.env
 .env.*
-node_modules
+node_modules/
+uploads/
+app.log
+*.zip
+*.zip.*
+deploy.sh

@@ -1,0 +1,147 @@
+
+> paisa-vasool-frontend@0.0.0 lint
+> eslint .
+
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/app/middleware.ts
+  3:46  error  '_store' is defined but never used  @typescript-eslint/no-unused-vars
+  4:47  error  Empty block statement               no-empty
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/app/routes.tsx
+  27:10  error  'ProtectedRoute' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/UserManagement/components/UserManagementPage.tsx
+  165:30  error  Unnecessary escape character: \[  no-useless-escape
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/auth/components/LoginPage.tsx
+  12:38  warning  React Hook useEffect has a missing dependency: 'clearError'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/auth/components/RegisterPage.tsx
+  10:71  error    Unnecessary escape character: \[                                                                               no-useless-escape
+  31:38  warning  React Hook useEffect has a missing dependency: 'clearError'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/auth/hooks/useAuth.ts
+  2:62  error  'verifyAuthThunk' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/dashboard/components/AdminDashboardPage.tsx
+  195:6  warning  React Hook useEffect has missing dependencies: 'cumCounts' and 'months'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  239:6  warning  React Hook useEffect has a missing dependency: 'sorted'. Either include it or remove the dependency array                    react-hooks/exhaustive-deps
+  287:6  warning  React Hook useEffect has missing dependencies: 'palette' and 'ranked'. Either include them or remove the dependency array    react-hooks/exhaustive-deps
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/dashboard/components/DashboardPage.tsx
+  624:21  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/dashboard/components/DashboardPage.tsx:624:21
+  622 |   };
+  623 |
+> 624 |   useEffect(() => { fetchAll(); }, [dispatch]);
+      |                     ^^^^^^^^ Avoid calling setState() directly within an effect
+  625 |   useEffect(() => {
+  626 |     const t = setInterval(() => fetchAll(true), 60000);
+  627 |     return () => clearInterval(t);  react-hooks/set-state-in-effect
+  624:36  warning  React Hook useEffect has a missing dependency: 'fetchAll'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+  628:6   warning  React Hook useEffect has a missing dependency: 'fetchAll'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/documents/components/InlineUploadPanel.tsx
+  237:7  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/documents/components/InlineUploadPanel.tsx:237:7
+  235 |         error:       null,
+  236 |       };
+> 237 |       setEntries([syntheticEntry]);
+      |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  238 |       setStep(2);
+  239 |     }
+  240 |  react-hooks/set-state-in-effect
+  247:6  warning  React Hook useEffect has a missing dependency: 'uploadProgress'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/documents/components/UploadProgressBanner.tsx
+  33:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/documents/components/UploadProgressBanner.tsx:33:7
+  31 |   useEffect(() => {
+  32 |     if (status === 'idle') {
+> 33 |       setFadeOut(false);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  34 |       setVisible(false);
+  35 |       return;
+  36 |     }  react-hooks/set-state-in-effect
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/invoices/components/InvoiceTable.tsx
+  462:2  error  Parsing error: Declaration or statement expected
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/invoices/services/invoiceService.ts
+  18:17  error  Empty block statement  no-empty
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/invoices/slices/invoiceSlice.ts
+  6:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/matching/components/MatchingPage.tsx
+   11:15  error    'DiscrepancyRecord' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  249:6   warning  React Hook useEffect has missing dependencies: 'match.invoice_id' and 'match.payment_detail_id'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/exhaustive-deps
+  549:21  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/matching/components/MatchingPage.tsx:549:21
+  547 |   }, [dispatch, showResolved]);
+  548 |
+> 549 |   useEffect(() => { setPage(1); }, [search, showResolved]);
+      |                     ^^^^^^^ Avoid calling setState() directly within an effect
+  550 |
+  551 |   const filtered = discrepancies.filter(d => {
+  552 |     if (!search) return true;                                                                                               react-hooks/set-state-in-effect
+  765:21  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/matching/components/MatchingPage.tsx:765:21
+  763 |   }, [matches]);
+  764 |
+> 765 |   useEffect(() => { setPage(1); }, [search, activeFilters, sortDir, viewMode]);
+      |                     ^^^^^^^ Avoid calling setState() directly within an effect
+  766 |
+  767 |   const toggleFilter = (s: MatchStatus) => {
+  768 |     setActiveFilters(prev => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; });  react-hooks/set-state-in-effect
+  768:60  error    Expected an assignment or function call and instead saw an expression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-expressions
+  991:9   error    'dispatch2' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/matching/services/agingConfigService.ts
+  49:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/dharshini/Documents/PaisaVasool_3_week/PaisaVasool-v1/paisa-vasool-frontend/src/features/payments/components/PaymentTable.tsx
+    3:10  error  'paymentService' is defined but never used            @typescript-eslint/no-unused-vars
+   12:7   error  'IconChevronDown' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   22:7   error  'IconTrash' is assigned a value but never used        @typescript-eslint/no-unused-vars
+   23:7   error  'IconCheck' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  144:10  error  'deleting' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  144:20  error  'setDeleting' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+✖ 33 problems (24 errors, 9 warnings)
+

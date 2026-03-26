@@ -2,3 +2,7 @@
 *.env
 .env.*
 node_modules
+app.log
+deploy.sh
+mypy_errors.txt
+.zip

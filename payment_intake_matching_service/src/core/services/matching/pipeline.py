@@ -1,12 +1,12 @@
 from decimal import Decimal
 
 from .strategies import (
-    BaseMatchStrategy,
-    InvoiceNumberStrategy,
-    CustomerStrategy,
-    CurrencyStrategy,
     AmountStrategy,
+    BaseMatchStrategy,
     ClosesBalanceStrategy,
+    CurrencyStrategy,
+    CustomerStrategy,
+    InvoiceNumberStrategy,
 )
 
 DEFAULT_PIPELINE: list[BaseMatchStrategy] = [
@@ -27,11 +27,15 @@ def run_scoring_pipeline(
     converted:           bool           = False,
     fx_rate:             Decimal | None = None,
     original_pay_amount: Decimal | None = None,
-    customer_name:       str | None     = None,
-    customer_email:      str | None     = None,
     pipeline:            list[BaseMatchStrategy] | None = None,
 ) -> tuple[int, list[str]]:
-
+    """
+    Run each strategy in order.
+    - Accumulates points and reasons.
+    - If any strategy returns passed=False, scoring stops immediately (score=0).
+    - Final score is capped at 100.
+    Returns (score, reasons).
+    """
     active_pipeline = pipeline or DEFAULT_PIPELINE
     total_score     = 0
     all_reasons: list[str] = []
@@ -46,8 +50,6 @@ def run_scoring_pipeline(
             converted=converted,
             fx_rate=fx_rate,
             original_pay_amount=original_pay_amount,
-            customer_name=customer_name,    
-            customer_email=customer_email,  
         )
         total_score  += result.points
         all_reasons  += result.reasons

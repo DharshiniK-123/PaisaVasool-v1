@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {fetchRemindersThunk,runAgingJobThunk,clearReminderError,clearJobSuccess,setRefreshing,} from '../slices/reminderSlice';
+import {fetchRemindersThunk,runAgingJobThunk,clearJobSuccess,setRefreshing,} from '../slices/reminderSlice';
 import Pagination from '../../../components/common/Pagination';
 
 type ReminderStatus = 'SENT' | 'FAILED' | 'PENDING';
@@ -74,12 +74,6 @@ const IconMail = () => (
 const IconUser = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-const IconHash = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
-    <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
   </svg>
 );
 const IconCalendar = () => (
@@ -183,26 +177,26 @@ function SeverityBadge({ severity }: { severity?: string | null }) {
 }
 
 
+const Row = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) => (
+  <div style={{
+    display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+    padding: '0.65rem 0', borderBottom: '1px solid var(--color-border)',
+  }}>
+    <div style={{ color: 'var(--color-muted)', flexShrink: 0, width: 16, display: 'flex', justifyContent: 'center', marginTop: '0.1rem' }}>
+      {icon}
+    </div>
+    <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', flex: '0 0 90px', marginTop: '0.1rem' }}>
+      {label}
+    </span>
+    <span style={{ fontSize: '0.78rem', fontWeight: 500, flex: 1, color: 'var(--color-text)', textAlign: 'right' }}>
+      {value}
+    </span>
+  </div>
+);
+
 function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: () => void }) {
   const statusKey = (reminder.status ?? 'PENDING').toString().toUpperCase();
   const cfg = STATUS_CONFIG[statusKey] ?? STATUS_CONFIG.PENDING;
-
-  const Row = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) => (
-    <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-      padding: '0.65rem 0', borderBottom: '1px solid var(--color-border)',
-    }}>
-      <div style={{ color: 'var(--color-muted)', flexShrink: 0, width: 16, display: 'flex', justifyContent: 'center', marginTop: '0.1rem' }}>
-        {icon}
-      </div>
-      <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', flex: '0 0 90px', marginTop: '0.1rem' }}>
-        {label}
-      </span>
-      <span style={{ fontSize: '0.78rem', fontWeight: 500, flex: 1, color: 'var(--color-text)', textAlign: 'right' }}>
-        {value}
-      </span>
-    </div>
-  );
 
   return (
     <>
@@ -247,6 +241,7 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
             <IconClose />
           </button>
         </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{
             background: 'linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))',
@@ -275,6 +270,7 @@ function ReminderDrawer({ reminder, onClose }: { reminder: Reminder; onClose: ()
               </div>
             </div>
           )}
+
           <section>
             <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
               Details
@@ -378,7 +374,16 @@ function RunJobModal({ onConfirm, onCancel, running }: {
     </>
   );
 }
+
 const ALL_STATUSES: ReminderStatus[] = ['SENT', 'FAILED', 'PENDING'];
+
+const TH_STYLE: React.CSSProperties = {
+  padding: '0.6rem 1rem', textAlign: 'left',
+  fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
+  textTransform: 'uppercase', letterSpacing: '0.1em',
+  color: 'var(--color-muted)', whiteSpace: 'nowrap',
+  background: 'var(--color-surface-2)',
+};
 
 export default function RemindersPage() {
   const dispatch = useAppDispatch();
@@ -412,7 +417,8 @@ export default function RemindersPage() {
   const toggleFilter = (s: ReminderStatus) => {
     setActiveFilters(prev => {
       const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
       return next;
     });
     setCurrentPage(1);
@@ -452,14 +458,6 @@ export default function RemindersPage() {
   const deliveryRate = reminders.length > 0
     ? Math.round((sentCount / reminders.length) * 100)
     : 0;
-
-  const thStyle: React.CSSProperties = {
-    padding: '0.6rem 1rem', textAlign: 'left',
-    fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-    textTransform: 'uppercase', letterSpacing: '0.1em',
-    color: 'var(--color-muted)', whiteSpace: 'nowrap',
-    background: 'var(--color-surface-2)',
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 1100 }}>
@@ -672,11 +670,11 @@ export default function RemindersPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Customer</th>
-                  <th style={thStyle}>Invoice</th>
-                  <th style={thStyle}>Severity</th>
-                  <th style={thStyle}>Sent</th>
+                  <th style={TH_STYLE}>Status</th>
+                  <th style={TH_STYLE}>Customer</th>
+                  <th style={TH_STYLE}>Invoice</th>
+                  <th style={TH_STYLE}>Severity</th>
+                  <th style={TH_STYLE}>Sent</th>
                 </tr>
               </thead>
               <tbody>

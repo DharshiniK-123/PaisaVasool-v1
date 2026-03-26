@@ -8,7 +8,7 @@ export function useInvoices() {
 
   useEffect(() => { dispatch(fetchInvoicesThunk()); }, [dispatch]);
 
-  const refresh    = () => dispatch(fetchInvoicesThunk(true as any));
+  const refresh    = () => dispatch(fetchInvoicesThunk(true));
   const clearError = () => dispatch(clearInvoiceError());
 
   return { invoices, loading, refreshing, error, refresh, clearError };

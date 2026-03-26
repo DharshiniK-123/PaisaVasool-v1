@@ -1,10 +1,16 @@
 from decimal import Decimal
 
 from src.config.matching_config import MATCHING_CONFIG
+
 from .base import BaseMatchStrategy, ScoreResult
 
 
 class AmountStrategy(BaseMatchStrategy):
+    """
+    Scores based on how well the payment amount matches
+    the invoice outstanding balance.
+    """
+
     def score(
         self,
         payment,
@@ -19,6 +25,7 @@ class AmountStrategy(BaseMatchStrategy):
         diff   = abs(remaining_pay - inv_remaining)
         label  = "Converted payment" if converted else "Payment"
 
+        # Exact match
         if remaining_pay == inv_remaining:
             return ScoreResult(
                 points=cfg.w_amt_exact,
@@ -29,6 +36,7 @@ class AmountStrategy(BaseMatchStrategy):
                 passed=True,
             )
 
+        # Within rounding tolerance
         if diff <= cfg.rounding_tolerance:
             return ScoreResult(
                 points=cfg.w_amt_tolerance,
@@ -40,6 +48,7 @@ class AmountStrategy(BaseMatchStrategy):
                 passed=True,
             )
 
+        # Partial payment (underpayment)
         if remaining_pay < inv_remaining:
             shortfall = inv_remaining - remaining_pay
             return ScoreResult(
@@ -52,7 +61,8 @@ class AmountStrategy(BaseMatchStrategy):
                 ],
                 passed=True,
             )
-        
+
+        # Overpayment
         excess = remaining_pay - inv_remaining
         return ScoreResult(
             points=cfg.w_amt_partial,

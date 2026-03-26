@@ -1,7 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
-import {uploadStarted,extractionDone,uploadFailed,saveDone,clearReviewRequest,} from '../slices/Uploadprogresslice';
-import { documentService, extractAxiosError } from '../services/documentService';
+import {
+  uploadStarted,
+  extractionDone,
+  uploadFailed,
+  saveDone,
+  clearReviewRequest,
+} from '../slices/UploadProgressSlice';
+import { documentService } from '../services/documentService';
+import { extractErrorMessage } from '../../../utils/errorUtils';
 import type { DocumentType, InvoiceRecord, PaymentRecord } from '../types/Document';
 
 const IconUpload    = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
@@ -216,28 +223,30 @@ export default function InlineUploadPanel({
 
     const { status, jobId, documentId, fileName, previewRows } = uploadProgress;
 
-    if (status === 'extracted' && documentId && fileName) {
-      const syntheticEntry: FileEntry = {
-        id:          'banner-review',
-        file:        new File([], fileName),
-        status:      'extracted',
-        jobId:       jobId,
-        documentId:  documentId,
-        previewRows: previewRows,
-        savedCount:  null,
-        error:       null,
-      };
-      setEntries([syntheticEntry]);
-      setStep(2);
-    }
+    setTimeout(() => {
+      if (status === 'extracted' && documentId && fileName) {
+        const syntheticEntry: FileEntry = {
+          id:          'banner-review',
+          file:        new File([], fileName),
+          status:      'extracted',
+          jobId:       jobId,
+          documentId:  documentId,
+          previewRows: previewRows,
+          savedCount:  null,
+          error:       null,
+        };
+        setEntries([syntheticEntry]);
+        setStep(2);
+      }
 
-    setOpen(true);
-    dispatch(clearReviewRequest());
+      setOpen(true);
+      dispatch(clearReviewRequest());
+    }, 0);
 
     setTimeout(() => {
       panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
-  }, [reviewRequested, uploadDocType, docType, dispatch]);
+  }, [reviewRequested, uploadDocType, docType, dispatch, uploadProgress]);
 
   const patchEntry = (id: string, patch: Partial<FileEntry>) =>
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
@@ -268,7 +277,7 @@ export default function InlineUploadPanel({
     try {
       uploadRes = await documentService.upload(file, docType);
     } catch (err) {
-      const msg = extractAxiosError(err);
+      const msg = extractErrorMessage(err);
       patchEntry(id, { status: 'failed', error: msg });
       if (!isBulk) dispatch(uploadFailed(msg));
       return;
@@ -297,7 +306,7 @@ export default function InlineUploadPanel({
       });
       if (!isBulk) dispatch(extractionDone(result.preview_data ?? []));
     } catch (err) {
-      const msg = extractAxiosError(err) ?? 'Extraction failed';
+      const msg = extractErrorMessage(err) ?? 'Extraction failed';
       patchEntry(id, { status: 'failed', error: msg });
       if (!isBulk) dispatch(uploadFailed(msg));
     }
@@ -341,7 +350,7 @@ export default function InlineUploadPanel({
         return updated;
       });
     } catch (err) {
-      const msg = extractAxiosError(err) ?? 'Save failed';
+      const msg = extractErrorMessage(err) ?? 'Save failed';
       patchEntry(id, { status: 'failed', error: msg });
       if (!isBulk) dispatch(uploadFailed(msg));
     }

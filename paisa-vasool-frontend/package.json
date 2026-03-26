@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:css": "npx tailwindcss-cli@latest build -i ./src/styles/tailwind.css -o ./src/styles/generated-tailwind.css",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {

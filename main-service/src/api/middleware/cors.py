@@ -1,5 +1,8 @@
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-def setup_cors(app):
+
+
+def setup_cors(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["https://paisavasool-frontend-717740758627.us-east1.run.app"],
@@ -7,3 +10,4 @@ def setup_cors(app):
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+
