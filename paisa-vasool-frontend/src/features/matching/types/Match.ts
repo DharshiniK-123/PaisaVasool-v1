@@ -1,10 +1,18 @@
-export type MatchStatus = 'FULL' | 'PARTIAL' | 'OVERPAYMENT' | 'DUPLICATE' | 'FAILED';
+export type MatchStatus =
+  | 'FULL'
+  | 'PARTIAL'
+  | 'OVERPAYMENT'
+  | 'DUPLICATE'
+  | 'FAILED'
+  | 'SUGGESTED'
+  | 'MANUALLY_MATCHED';
 
 export interface MatchRecord {
   id: number;
   payment_detail_id: number;
-  invoice_id: number;
+  invoice_id: number | null;
   match_status: MatchStatus;
+  match_score?: number;
   matched_amount?: number;
   amount_pending?: number;
   match_notes?: string;
@@ -13,6 +21,22 @@ export interface MatchRecord {
   resolved_reason?: string;
   created_at: string;
   [key: string]: unknown;
+}
+
+export interface SuggestedMatch {
+  match_id: number;
+  payment_id: number;
+  invoice_id: number;
+  invoice_number: string;
+  invoice_amount: number;
+  payment_amount: number;
+  matched_amount: number;
+  amount_pending: number | null;
+  match_score: number;
+  match_reason: string | null;
+  currency: string;
+  paid_date: string;
+  created_at: string;
 }
 
 export interface DiscrepancyRecord {
@@ -57,10 +81,12 @@ export interface MatchingState {
   discrepancies: DiscrepancyRecord[];
   unmatchedPayments: MatchPaymentDetail[];
   unmatchedInvoices: MatchInvoiceData[];
+  pendingReview: SuggestedMatch[];
   loading: boolean;
   refreshing: boolean;
   discrepanciesLoading: boolean;
   unmatchedPaymentsLoading: boolean;
   unmatchedInvoicesLoading: boolean;
+  pendingReviewLoading: boolean;
   error: string | null;
 }

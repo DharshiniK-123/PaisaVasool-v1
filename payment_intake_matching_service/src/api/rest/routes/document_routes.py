@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Literal
+from src.core.enums import DocumentStatus, DocumentType
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -19,12 +20,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
-MAX_FILE_SIZE = 10 * 1024 * 1024
-
 
 @router.post("/upload")
 async def upload_document(
-    document_type: Literal["INVOICE", "PAYMENT"] = Query(...),
+    document_type: DocumentType = Query(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
@@ -34,12 +33,7 @@ async def upload_document(
     import uuid
 
     try:
-        contents = await file.read()
-        if len(contents) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413, detail="File too large. Maximum allowed size is 10MB."
-            )
-        await file.seek(0)
+        
 
         job_id = str(uuid.uuid4())
         result = await upload_document_and_enqueue(
@@ -51,7 +45,7 @@ async def upload_document(
         )
         return {
             "file_name": file.filename,
-            "status": "PROCESSING",
+            "status": DocumentStatus.PROCESSING,
             "job_id": job_id,
             "document_id": result["document_id"],
             "message": "File uploaded. Extraction running in background.",
@@ -71,7 +65,7 @@ async def get_job_status(job_id: str, user: dict = Depends(get_current_user)):
         if not data:
             return {
                 "job_id": job_id,
-                "status": "PROCESSING",
+                "status": DocumentStatus.PROCESSING,
                 "message": "Document is being processed. Please check back shortly.",
             }
         return {"job_id": job_id, **json.loads(data)}
@@ -94,7 +88,7 @@ async def get_user_stats(
 
 
 class SaveRecordsRequest(BaseModel):
-    document_type: Literal["INVOICE", "PAYMENT"]
+    document_type: DocumentType
     records: list[dict]
 
 
@@ -123,10 +117,11 @@ async def save_records(
             document_id=document_id,
             document_type=body.document_type,
             records=body.records,
+            db=db,  
         )
         return {
             "document_id": document_id,
-            "status": "PARSED",
+            "status": DocumentStatus.PARSED,
             "records_saved": count,
             "message": "Records saved successfully.",
         }

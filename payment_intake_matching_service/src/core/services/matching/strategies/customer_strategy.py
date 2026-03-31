@@ -33,5 +33,5 @@ class CustomerStrategy(BaseMatchStrategy):
                 f"Customer ID mismatch — payment customer: {payment.customer_id}, "
                 f"invoice customer: {invoice.customer_id}."
             ],
-            passed=True,  # mismatch is noted but does not disqualify
+            passed=True,  
         )

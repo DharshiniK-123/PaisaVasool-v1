@@ -4,51 +4,71 @@ import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { ROUTES } from '../config/constants';
 import { logoutThunk, logout } from '../features/auth';
 
+const IconDashboard = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>;
+const IconUsers    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+const IconInvoice  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>;
+const IconPayment  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+const IconReminder = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+const IconLogout   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+const IconMenu     = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>;
+const IconChevronRight = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
 
-const IconDashboard = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-    <rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
-  </svg>
-);
-
-const IconUsers = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-    <circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-  </svg>
-);
-
-const IconLogout = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-  </svg>
-);
-
-const IconMenu = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-  </svg>
-);
-
-const IconChevronRight = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-
-const ADMIN_NAV = [
+// ─── Nav groups ───────────────────────────────────────────────────────────────
+const ADMIN_NAV_MAIN = [
   { label: 'Dashboard',       to: ROUTES.ADMIN_DASHBOARD, icon: <IconDashboard /> },
   { label: 'User Management', to: ROUTES.ADMIN_USERS,     icon: <IconUsers /> },
 ];
 
+const ADMIN_NAV_DATA = [
+  { label: 'Invoices',  to: ROUTES.ADMIN_INVOICES,  icon: <IconInvoice /> },
+  { label: 'Payments',  to: ROUTES.ADMIN_PAYMENTS,  icon: <IconPayment /> },
+  { label: 'Reminders', to: ROUTES.ADMIN_REMINDERS, icon: <IconReminder /> },
+];
+
+// ─── Page titles ──────────────────────────────────────────────────────────────
 const ADMIN_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   [ROUTES.ADMIN_DASHBOARD]: { title: 'Admin Dashboard',   subtitle: 'Overview of your payment operations' },
   [ROUTES.ADMIN_USERS]:     { title: 'User Management',   subtitle: 'Create and manage finance associate accounts' },
+  [ROUTES.ADMIN_INVOICES]:  { title: 'All Invoices',      subtitle: 'Read-only view of invoices across all users' },
+  [ROUTES.ADMIN_PAYMENTS]:  { title: 'All Payments',      subtitle: 'Read-only view of payments across all users' },
+  [ROUTES.ADMIN_REMINDERS]: { title: 'All Reminders',     subtitle: 'Reminder logs across all users' },
 };
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
+  if (collapsed) return <div style={{ height: 1, background: 'var(--color-border)', margin: '0.5rem 0.5rem' }} />;
+  return (
+    <p style={{ fontSize: '0.55rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--color-faint, var(--color-muted))', padding: '0.6rem 0.875rem 0.25rem', whiteSpace: 'nowrap' }}>
+      {label}
+    </p>
+  );
+}
+
+function NavItem({ item, collapsed }: { item: { label: string; to: string; icon: React.ReactNode }; collapsed: boolean }) {
+  return (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      title={collapsed ? item.label : undefined}
+      style={({ isActive }) => ({
+        display: 'flex', alignItems: 'center', gap: '0.75rem',
+        padding: collapsed ? '0.65rem' : '0.6rem 0.875rem',
+        borderRadius: 9, textDecoration: 'none', cursor: 'pointer',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        fontSize: '0.82rem', fontWeight: isActive ? 600 : 400,
+        fontFamily: "'DM Sans', sans-serif",
+        color: isActive ? 'var(--color-accent)' : 'var(--color-muted)',
+        background: isActive ? 'var(--color-accent-soft)' : 'transparent',
+        border: isActive ? '1px solid rgba(37,99,235,0.12)' : '1px solid transparent',
+        transition: 'all 0.18s',
+        whiteSpace: 'nowrap', overflow: 'hidden',
+      })}
+    >
+      <span style={{ flexShrink: 0, display: 'flex' }}>{item.icon}</span>
+      {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
+    </NavLink>
+  );
+}
 
 function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const dispatch = useAppDispatch();
@@ -93,113 +113,50 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
           </div>
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
-              <span className="font-display" style={{
-                fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)',
-                letterSpacing: '-0.01em', whiteSpace: 'nowrap',
-                animation: 'fadeIn 0.2s ease both', display: 'block',
-              }}>
+              <span className="font-display" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', animation: 'fadeIn 0.2s ease both', display: 'block' }}>
                 PaisaVasool
               </span>
-              <span style={{
-                fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.15em',
-                color: 'var(--color-accent)', fontWeight: 600, whiteSpace: 'nowrap',
-              }}>
+              <span style={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                 Admin Panel
               </span>
             </div>
           )}
         </div>
         {!collapsed && (
-          <button
-            onClick={onToggle}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--color-muted)', padding: '0.3rem',
-              display: 'flex', borderRadius: 6, flexShrink: 0,
-              transition: 'color 0.15s',
-            }}
-            title="Collapse sidebar"
-          >
+          <button onClick={onToggle} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '0.3rem', display: 'flex', borderRadius: 6, flexShrink: 0, transition: 'color 0.15s' }} title="Collapse sidebar">
             <IconMenu />
           </button>
         )}
       </div>
 
       {collapsed && (
-        <button
-          onClick={onToggle}
-          style={{
-            margin: '0.625rem auto 0', background: 'none',
-            border: '1px solid var(--color-border)', borderRadius: 8,
-            padding: '0.4rem', cursor: 'pointer', color: 'var(--color-muted)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.15s',
-          }}
-          title="Expand sidebar"
-        >
+        <button onClick={onToggle} style={{ margin: '0.625rem auto 0', background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, padding: '0.4rem', cursor: 'pointer', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} title="Expand sidebar">
           <IconChevronRight />
         </button>
       )}
 
-      <nav style={{
-        flex: 1, padding: '0.75rem 0.5rem',
-        display: 'flex', flexDirection: 'column', gap: '0.1rem',
-        overflowY: 'auto', overflowX: 'hidden',
-      }}>
-        {ADMIN_NAV.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={collapsed ? item.label : undefined}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              padding: collapsed ? '0.65rem' : '0.6rem 0.875rem',
-              borderRadius: 9, textDecoration: 'none', cursor: 'pointer',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              fontSize: '0.82rem', fontWeight: isActive ? 600 : 400,
-              fontFamily: "'DM Sans', sans-serif",
-              color: isActive ? 'var(--color-accent)' : 'var(--color-muted)',
-              background: isActive ? 'var(--color-accent-soft)' : 'transparent',
-              border: isActive ? '1px solid rgba(37,99,235,0.12)' : '1px solid transparent',
-              transition: 'all 0.18s',
-              whiteSpace: 'nowrap', overflow: 'hidden',
-            })}
-          >
-            <span style={{ flexShrink: 0, display: 'flex' }}>{item.icon}</span>
-            {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
-          </NavLink>
-        ))}
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.1rem', overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Main group */}
+        <NavGroup label="Main" collapsed={collapsed} />
+        {ADMIN_NAV_MAIN.map(item => <NavItem key={item.to} item={item} collapsed={collapsed} />)}
+
+        {/* Data group */}
+        <NavGroup label="Data" collapsed={collapsed} />
+        {ADMIN_NAV_DATA.map(item => <NavItem key={item.to} item={item} collapsed={collapsed} />)}
       </nav>
 
-      <div style={{
-        padding: '0.625rem 0.5rem',
-        borderTop: '1px solid var(--color-border)',
-        display: 'flex', flexDirection: 'column', gap: '0.1rem',
-      }}>
+      {/* Footer */}
+      <div style={{ padding: '0.625rem 0.5rem', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
         {!collapsed && user && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            padding: '0.6rem 0.875rem', borderRadius: 9,
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            marginBottom: '0.25rem',
-          }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-              background: 'rgba(37,99,235,0.1)',
-              border: '1px solid rgba(37,99,235,0.18)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 0.875rem', borderRadius: 9, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', marginBottom: '0.25rem' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-accent)' }}>
                 {((user as { email?: string }).email?.[0] ?? 'A').toUpperCase()}
               </span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{
-                fontSize: '0.72rem', fontWeight: 500,
-                color: 'var(--color-text)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
+              <p style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {(user as { email?: string }).email}
               </p>
               <p style={{ fontSize: '0.62rem', color: 'var(--color-accent)', fontWeight: 600 }}>Admin</p>
@@ -210,16 +167,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
         <button
           onClick={handleLogout}
           title={collapsed ? 'Logout' : undefined}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            padding: collapsed ? '0.65rem' : '0.6rem 0.875rem',
-            borderRadius: 9, cursor: 'pointer',
-            border: '1px solid transparent', background: 'transparent',
-            color: 'var(--color-muted)', fontSize: '0.82rem',
-            fontWeight: 400, fontFamily: "'DM Sans', sans-serif",
-            transition: 'all 0.18s', justifyContent: collapsed ? 'center' : 'flex-start',
-            whiteSpace: 'nowrap', width: '100%',
-          }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: collapsed ? '0.65rem' : '0.6rem 0.875rem', borderRadius: 9, cursor: 'pointer', border: '1px solid transparent', background: 'transparent', color: 'var(--color-muted)', fontSize: '0.82rem', fontWeight: 400, fontFamily: "'DM Sans', sans-serif", transition: 'all 0.18s', justifyContent: collapsed ? 'center' : 'flex-start', whiteSpace: 'nowrap', width: '100%' }}
           onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#ef4444'; el.style.borderColor = 'rgba(239,68,68,0.12)'; el.style.background = 'rgba(239,68,68,0.05)'; }}
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'var(--color-muted)'; el.style.borderColor = 'transparent'; el.style.background = 'transparent'; }}
         >
@@ -231,6 +179,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
   );
 }
 
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
 function AdminTopBar() {
   const location = useLocation();
   const page = ADMIN_PAGE_TITLES[location.pathname] ?? { title: 'Admin Panel', subtitle: '' };
@@ -240,10 +189,7 @@ function AdminTopBar() {
   return (
     <header className="dashboard-header">
       <div>
-        <h1 className="font-display" style={{
-          fontSize: '1.1rem', fontWeight: 700,
-          color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2,
-        }}>
+        <h1 className="font-display" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
           {page.title}
         </h1>
         <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)', marginTop: '0.1rem' }}>
@@ -252,12 +198,12 @@ function AdminTopBar() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{dateStr}</span>
-        
       </div>
     </header>
   );
 }
 
+// ─── Layout ───────────────────────────────────────────────────────────────────
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const SIDEBAR_W = collapsed ? 60 : 220;
@@ -265,14 +211,7 @@ export default function AdminLayout() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex' }}>
       <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
-      <div style={{
-        marginLeft: SIDEBAR_W,
-        flex: 1, minWidth: 0,
-        display: 'flex', flexDirection: 'column',
-        minHeight: '100vh',
-        transition: 'margin-left 0.3s var(--ease-out-expo)',
-        position: 'relative', zIndex: 1,
-      }}>
+      <div style={{ marginLeft: SIDEBAR_W, flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', transition: 'margin-left 0.3s var(--ease-out-expo)', position: 'relative', zIndex: 1 }}>
         <AdminTopBar />
         <main style={{ flex: 1, padding: '1.75rem 2rem', overflowX: 'hidden' }}>
           <Outlet />

@@ -251,10 +251,38 @@ export default function InlineUploadPanel({
   const patchEntry = (id: string, patch: Partial<FileEntry>) =>
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
 
+  const ALLOWED_EXTENSIONS = new Set(['pdf', 'csv', 'xlsx', 'xls', 'png', 'jpeg', 'jpg', 'webp']);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const addFiles = (files: FileList | File[]) => {
-    const newEntries = Array.from(files).map(makeEntry);
-    setEntries(prev => [...prev, ...newEntries]);
-    setStep(s => s === 1 ? 2 : s);
+    const valid: File[] = [];
+    const invalidType: string[] = [];
+    const invalidSize: string[] = [];
+
+    Array.from(files).forEach(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        invalidType.push(file.name);
+      } else if (file.size > MAX_FILE_SIZE) {
+        invalidSize.push(`${file.name} (${formatBytes(file.size)})`);
+      } else {
+        valid.push(file);
+      }
+    });
+
+    if (invalidType.length > 0) {
+      alert(`Unsupported file type(s):\n${invalidType.join('\n')}\n\nAllowed: PDF, CSV, XLSX, PNG, JPG, WEBP`);
+    }
+
+    if (invalidSize.length > 0) {
+      alert(`File(s) exceed 10MB limit:\n${invalidSize.join('\n')}`);
+    }
+
+    if (valid.length > 0) {
+      const newEntries = valid.map(makeEntry);
+      setEntries(prev => [...prev, ...newEntries]);
+      setStep(s => s === 1 ? 2 : s);
+    }
   };
 
   const removeEntry = (id: string) => {
@@ -416,11 +444,11 @@ export default function InlineUploadPanel({
                 <p style={{ fontSize: '0.82rem', color: 'var(--color-text)', marginBottom: '0.25rem' }}>
                   Drag & drop or <span style={{ color: accent, textDecoration: 'underline' }}>browse</span>
                 </p>
-                <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>PDF, XLSX, XLS or CSV · Max 10 MB · Multiple files allowed</p>
+                <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>PDF, XLSX, XLS ,PNG, JPEG, JPG, WEBP or CSV · Max 10 MB · Multiple files allowed</p>
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".pdf,.xlsx,.xls,.csv"
+                  accept=".pdf,.xlsx,.xls,.csv,.png,.jpeg,.jpg,.webp"
                   multiple
                   style={{ display: 'none' }}
                   onChange={e => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ''; }}

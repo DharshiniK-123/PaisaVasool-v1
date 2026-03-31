@@ -10,11 +10,18 @@ from .strategies import (
 )
 
 DEFAULT_PIPELINE: list[BaseMatchStrategy] = [
-    InvoiceNumberStrategy(),
-    CustomerStrategy(),
-    CurrencyStrategy(),
-    AmountStrategy(),
-    ClosesBalanceStrategy(),
+    InvoiceNumberStrategy(),   # 50 exact / 30 partial  — passed=False if no hit
+    CustomerStrategy(),        # 25
+    CurrencyStrategy(),        # 5
+    AmountStrategy(),          # 20 / 15 / 5
+    ClosesBalanceStrategy(),   # 10 bonus
+]
+
+DEEP_MATCH_PIPELINE: list[BaseMatchStrategy] = [
+    CustomerStrategy(),        # 25
+    CurrencyStrategy(),        # 5
+    AmountStrategy(),          # 20 / 15 / 5
+    ClosesBalanceStrategy(),   # 10 bonus
 ]
 
 

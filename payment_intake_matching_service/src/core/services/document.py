@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.control.extraction.Llm_extractor import run_extraction
+from src.core.enums import DocumentStatus, DocumentType, MatchStatus
 from src.core.services.extraction_service import extract_text
 from src.core.services.matching import run_matching_for_payment
 from src.core.services.storage_service import save_file
@@ -34,10 +35,11 @@ from src.utils.worker_trigger import trigger_worker
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {"pdf", "csv", "xlsx", "xls", "jpg", "jpeg", "png", "gif", "webp"}
-IMAGE_TYPES = {"jpg", "jpeg", "png", "gif", "webp"}
-
+ALLOWED_EXTENSIONS = {"pdf", "csv", "xlsx", "xls", "jpg", "jpeg", "png", "webp"}
+IMAGE_TYPES = {"jpg", "jpeg", "png", "webp"}
+MAX_FILE_SIZE = 10 * 1024 * 1024
 DATE_FIELDS = ("invoice_date", "due_date", "payment_date", "transaction_date", "paid_date")
+PREVIEW_KEY_PREFIX = "preview:"
 
 
 def _make_session():
@@ -71,10 +73,16 @@ async def upload_document_and_enqueue(
         raise HTTPException(
             status_code=400,
             detail=f"""Unsupported file type '.{extension}'. 
-            Allowed: pdf, csv, xlsx, jpg, png, webp""",
+            Allowed: pdf, csv, xls, xlsx, jpg, png, webp""",
         )
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, detail="File too large. Maximum allowed size is 10MB."
+        )
+    await file.seek(0)
 
-    storage_path, file_type, file_url = await save_file(file, document_type)
+    storage_path, file_type, file_url, file_hash = await save_file(file, document_type)
 
     stmt = (
         sa_insert(Document)
@@ -84,7 +92,7 @@ async def upload_document_and_enqueue(
             file_name=original_name,
             file_type=file_type,
             storage_path=storage_path,
-            status="PENDING",
+            status=DocumentStatus.PENDING,
         )
         .returning(Document.id)
     )
@@ -137,12 +145,12 @@ async def extract_document_data(
 
     try:
         async with db:
-            await update_instance_by_id(document_id, Document, db, status="PROCESSING")
+            await update_instance_by_id(document_id, Document, db, status=DocumentStatus.PROCESSING)
 
             try:
                 extracted = await extract_text(storage_path, file_type, file_url)
             except HTTPException:
-                await update_instance_by_id(document_id, Document, db, status="FAILED")
+                await update_instance_by_id(document_id, Document, db, status=DocumentStatus.FAILED)
                 raise
 
             try:
@@ -158,14 +166,14 @@ async def extract_document_data(
                         status_code=400, detail=f"Unsupported file type: {file_type}"
                     )
 
-                await update_instance_by_id(document_id, Document, db, status="EXTRACTED")
+                await update_instance_by_id(document_id, Document, db, status=DocumentStatus.EXTRACTED)
                 return records
 
             except HTTPException:
-                await update_instance_by_id(document_id, Document, db, status="FAILED")
+                await update_instance_by_id(document_id, Document, db, status=DocumentStatus.FAILED)
                 raise
             except Exception as e:
-                await update_instance_by_id(document_id, Document, db, status="FAILED")
+                await update_instance_by_id(document_id, Document, db, status=DocumentStatus.FAILED)
                 raise HTTPException(status_code=500, detail="Extraction failed") from e
     finally:
         await engine.dispose()
@@ -175,91 +183,104 @@ async def save_document_records(
     document_id: int,
     document_type: str,
     records: list[dict],
+    db: AsyncSession | None = None,
 ) -> int:
-    engine, db = _make_session()
+    engine = None
+    should_close = False
 
-    try:
-        async with db:
-            count = 0
+    if db is None:
+        engine, db = _make_session()
+        should_close = True
 
-            for data in records:
-                data = dict(data)
+    async def _run(db: AsyncSession) -> int:
+        count = 0
 
-                for date_field in DATE_FIELDS:
-                    if date_field in data:
-                        data[date_field] = _parse_date(data[date_field])
+        for data in records:
+            data = dict(data)
 
-                if data.get("customer_id"):
-                    customer_id = int(data["customer_id"])
-                else:
-                    customer_id = await _resolve_customer(
-                        name=data.get("customer_name"),
-                        email=data.get("customer_email"),
+            for date_field in DATE_FIELDS:
+                if date_field in data:
+                    data[date_field] = _parse_date(data[date_field])
+
+            if data.get("customer_id"):
+                customer_id = int(data["customer_id"])
+            else:
+                customer_id = await _resolve_customer(
+                    name=data.get("customer_name"),
+                    email=data.get("customer_email"),
+                    db=db,
+                    document_type=document_type,
+                )
+
+            for field in (
+                "id",
+                "document_id",
+                "customer_id",
+                "_sa_instance_state",
+                "customer_name",
+                "customer_email",
+                "customer_phone",
+                "payer_name",
+                "payer_email",
+                "payer_phone",
+            ):
+                data.pop(field, None)
+
+            model = InvoiceData if document_type == DocumentType.INVOICE else PaymentDetail
+
+            stmt = (
+                sa_insert(model)
+                .values(document_id=document_id, customer_id=customer_id, **data)
+                .returning(model.id)
+            )
+            result = await db.execute(stmt)
+            await db.commit()
+            inserted_id = result.scalar_one()
+
+            if document_type == DocumentType.PAYMENT:
+                await run_matching_for_payment(inserted_id, db)
+
+            elif document_type == DocumentType.INVOICE:
+                invoice_number = data.get("invoice_number", "")
+                if invoice_number:
+                    await _rematch_payments_for_invoice(
+                        invoice_number=invoice_number,
+                        customer_id=customer_id,
                         db=db,
-                        document_type=document_type,
                     )
 
-                for field in (
-                    "id",
-                    "document_id",
-                    "customer_id",
-                    "_sa_instance_state",
-                    "customer_name",
-                    "customer_email",
-                    "customer_phone",
-                    "payer_name",
-                    "payer_email",
-                    "payer_phone",
-                ):
-                    data.pop(field, None)
+            count += 1
 
-                model = InvoiceData if document_type == "INVOICE" else PaymentDetail
+        await update_instance_by_id(document_id, Document, db, status=DocumentStatus.PARSED)
 
-                stmt = (
-                    sa_insert(model)
-                    .values(document_id=document_id, customer_id=customer_id, **data)
-                    .returning(model.id)
-                )
-                result = await db.execute(stmt)
-                await db.commit()
-                inserted_id = result.scalar_one()
+        try:
+            redis = get_async_redis_client()
+            await redis.delete(f"{PREVIEW_KEY_PREFIX}{document_id}")
+            await redis.aclose()
+        except Exception as e:
+            logger.warning("redis_preview_delete_failed", extra={"error": str(e)})
 
-                if document_type == "PAYMENT":
-                    await run_matching_for_payment(inserted_id, db)
+        return count
 
-                elif document_type == "INVOICE":
-                    invoice_number = data.get("invoice_number", "")
-                    if invoice_number:
-                        await _rematch_pending_payments_for_invoice(
-                            invoice_number=invoice_number,
-                            customer_id=customer_id,
-                            db=db,
-                        )
-
-                count += 1
-
-            await update_instance_by_id(document_id, Document, db, status="PARSED")
-
-            try:
-                redis = get_async_redis_client()
-                await redis.delete(f"preview:{document_id}")
-                await redis.aclose()
-            except Exception as e:
-                logger.warning("redis_preview_delete_failed", extra={"error": str(e)})
-
-            return count
+    try:
+        if should_close:
+            async with db:
+                return await _run(db)
+        else:
+            return await _run(db)
     finally:
-        await engine.dispose()
+        if should_close and engine:
+            await engine.dispose()
 
 
-async def _rematch_pending_payments_for_invoice(
+async def _rematch_payments_for_invoice(
     invoice_number: str,
     customer_id: int,
     db: AsyncSession,
 ) -> None:
     """
     Called after a new invoice is saved.
-    Finds every non-deleted payment for the same customer whose invoice_no
+    Finds every payment for the same customer whose invoice_no
     matches this invoice number and that has NO successful match record yet,
     then re-runs the matching pipeline for each such payment.
 
@@ -288,7 +309,11 @@ async def _rematch_pending_payments_for_invoice(
         existing = await db.execute(
             select(MatchingPaymentInvoice).where(
                 MatchingPaymentInvoice.payment_detail_id == payment.id,
-                MatchingPaymentInvoice.match_status.in_(["FULL", "PARTIAL", "OVERPAYMENT"]),
+                MatchingPaymentInvoice.match_status.in_([
+                    MatchStatus.FULL,
+                    MatchStatus.PARTIAL,
+                    MatchStatus.OVERPAYMENT,
+                ]),
             )
         )
         if existing.scalars().first() is not None:
@@ -296,13 +321,13 @@ async def _rematch_pending_payments_for_invoice(
         await db.execute(
             sa_delete(MatchingPaymentInvoice).where(
                 MatchingPaymentInvoice.payment_detail_id == payment.id,
-                MatchingPaymentInvoice.match_status == "FAILED",
+                MatchingPaymentInvoice.match_status == MatchStatus.FAILED,
             )
         )
         await db.flush()
 
         logger.info(
-            "rematch_pending_payment",
+            "rematch_payment",
             extra={"payment_id": payment.id, "invoice_number": invoice_number},
         )
         await run_matching_for_payment(int(payment.id), db)
@@ -314,13 +339,17 @@ async def _extract_single(raw_text: str, document_type: str) -> list[dict]:
 
 
 async def _extract_multi_page(pages: list[str], document_type: str) -> list[dict]:
-    """Extract one record per PDF page, skipping pages where extraction fails."""
     records = []
     for i, page_text in enumerate(pages):
         try:
             record = await run_extraction(page_text, document_type)
             records.append(record)
         except HTTPException as e:
+            if e.status_code == 422 and (
+                "mismatch" in str(e.detail).lower() or
+                "does not appear" in str(e.detail).lower()
+            ):
+                raise
             logger.warning(
                 "pdf_page_extraction_skipped",
                 extra={"page_index": i, "detail": e.detail},
@@ -346,11 +375,11 @@ async def _resolve_customer(
     name: str | None,
     email: str | None,
     db: AsyncSession,
-    document_type: str = "INVOICE",
+    document_type: str = DocumentType.INVOICE,
 ) -> int:
     clean_email = (email or "").strip().lower()
     if clean_email in ("", "null", "none"):
-        if document_type == "INVOICE":
+        if document_type == DocumentType.INVOICE:
             raise HTTPException(
                 status_code=422,
                 detail=(
@@ -371,7 +400,7 @@ async def _resolve_customer(
     if existing:
         return int(existing.id)
 
-    if document_type == "INVOICE":
+    if document_type == DocumentType.INVOICE:
         from src.data.repositories.generic_repository import insert_instance
 
         await insert_instance(

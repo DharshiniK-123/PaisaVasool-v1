@@ -7,6 +7,9 @@ import AuthLayout from '../layout/AuthLayout';
 import AppLayout from '../layout/AppLayout';
 import AdminLayout from '../layout/AdminLayout';
 import { LoginPage, RegisterPage } from '../features/auth';
+import AdminInvoicesPage from '../features/invoices/components/AdminInvoicesPage';
+import AdminPaymentsPage from '../features/payments/components/AdminPaymentsPage';
+import AdminRemindersPage from '../features/reminders/components/AdminRemindersPage';
 
 const DashboardPage       = lazy(() => import('../features/dashboard/components/DashboardPage'));
 const MatchingPage        = lazy(() => import('../features/matching/components/MatchingPage'));
@@ -67,9 +70,13 @@ export default function AppRoutes() {
         <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardPage />} />
           <Route path={ROUTES.ADMIN_USERS}     element={<UserManagementPage />} />
+          <Route path={ROUTES.ADMIN_INVOICES}  element={<AdminInvoicesPage />} />
+          <Route path={ROUTES.ADMIN_PAYMENTS}  element={<AdminPaymentsPage />} />
+          <Route path={ROUTES.ADMIN_REMINDERS} element={<AdminRemindersPage />} />
         </Route>
         <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
       </Routes>
+      
     </Suspense>
   );
 }

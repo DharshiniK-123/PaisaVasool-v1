@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useInvoices } from '../hooks/useInvoices';
 import { invoiceService } from '../services/invoiceService';
 import InlineUploadPanel from '../../documents/components/InlineUploadPanel';
 import type { Invoice, InvoiceMatch, PaymentStatus } from '../types/Invoice';
 import Pagination from '../../../components/common/Pagination';
+import { useAppDispatch, useAppSelector } from '../../../hooks/redux';
+import {
+  fetchPendingReviewThunk,
+  approveMatchThunk,
+  rejectMatchThunk,
+  manualAssignThunk,
+} from '../../matching/slices/matchingSlice';
+import type { SuggestedMatch } from '../../matching/types/Match';
 
 const IconSearch      = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>);
 const IconRefresh     = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>);
@@ -22,6 +30,11 @@ const IconLink        = () => (<svg width="14" height="14" viewBox="0 0 24 24" f
 const IconWarning     = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>);
 const IconVoid        = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>);
 const IconClock       = () => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
+const IconPayment     = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>);
+const IconInvoicePR   = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>);
+const IconThumbUp     = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>);
+const IconThumbDown   = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>);
+const IconAssign      = () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>);
 
 function Spinner({ size = 18, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}22`, borderTopColor: color, animation: 'spin 0.65s linear infinite', flexShrink: 0 }} />;
@@ -372,6 +385,265 @@ const SortTh = ({ activeKey, dir, onSort, col, label }: { activeKey: string; dir
   );
 const TH_STYLE: React.CSSProperties = { padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.6rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', whiteSpace: 'nowrap', background: 'var(--color-surface-2)' };
 
+// ─── Pending Review helpers ───────────────────────────────────────────────────
+
+function ScoreBar({ score, max = 60 }: { score: number; max?: number }) {
+  const pct = Math.min(100, Math.round((score / max) * 100));
+  const color = pct >= 75 ? '#34d399' : pct >= 45 ? '#fbbf24' : '#f87171';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+      <div style={{ flex: 1, height: 5, background: 'var(--color-border)', borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s' }} />
+      </div>
+      <span style={{ fontSize: '0.68rem', fontWeight: 700, color, flexShrink: 0 }}>{score}/{max}</span>
+    </div>
+  );
+}
+
+function ConfirmModal({ title, message, confirmLabel, confirmColor, loading, onConfirm, onCancel }: {
+  title: string; message: string; confirmLabel: string; confirmColor: string;
+  loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '1.5rem', maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{title}</h3>
+        <p style={{ margin: '0 0 1.25rem', fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.6 }}>{message}</p>
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-muted)', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={onConfirm} disabled={loading} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, border: 'none', background: confirmColor, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {loading ? <Spinner size={13} color="#fff" /> : null}{confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ManualAssignModal({ paymentId, suggestedInvoiceId, onAssign, onCancel }: {
+  paymentId: number; suggestedInvoiceId?: number | null;
+  onAssign: (invoiceId: number) => void; onCancel: () => void;
+}) {
+  const [inputVal, setInputVal] = useState(suggestedInvoiceId ? String(suggestedInvoiceId) : '');
+  const parsed = parseInt(inputVal, 10);
+  const valid  = !isNaN(parsed) && parsed > 0;
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '1.5rem', maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+        <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>Manual Assignment</h3>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.72rem', color: 'var(--color-muted)' }}>Assign payment #{paymentId} to an invoice.</p>
+        <label style={{ fontSize: '0.72rem', color: 'var(--color-muted)', display: 'block', marginBottom: '0.4rem' }}>Invoice ID</label>
+        <input
+          type="number" value={inputVal} onChange={e => setInputVal(e.target.value)}
+          placeholder="Enter invoice ID…"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '0.55rem 0.75rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none', marginBottom: '1.25rem' }}
+        />
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-muted)', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={() => valid && onAssign(parsed)} disabled={!valid} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, border: 'none', background: valid ? 'var(--color-accent)' : 'var(--color-border)', color: '#fff', cursor: valid ? 'pointer' : 'not-allowed', fontSize: '0.78rem', fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <IconAssign /> Assign
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PendingReviewTab() {
+  const dispatch = useAppDispatch();
+  const { pendingReview, pendingReviewLoading } = useAppSelector(s => s.matching);
+  const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
+  const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null);
+  const [confirm, setConfirm] = useState<{ type: 'approve' | 'reject'; match: SuggestedMatch } | null>(null);
+  const [assignModal, setAssignModal] = useState<SuggestedMatch | null>(null);
+
+  useEffect(() => { dispatch(fetchPendingReviewThunk()); }, [dispatch]);
+
+  const showToast = useCallback((msg: string, ok: boolean) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const setLoading = (id: number, val: boolean) =>
+    setActionLoading(prev => ({ ...prev, [id]: val }));
+
+  const handleApprove = async (match: SuggestedMatch) => {
+    setConfirm(null);
+    setLoading(match.match_id, true);
+    try {
+      await dispatch(approveMatchThunk({ paymentId: match.payment_id, matchId: match.match_id })).unwrap();
+      showToast(`Match approved — Invoice ${match.invoice_number}`, true);
+      dispatch(fetchPendingReviewThunk());
+    } catch (e: any) { showToast(e?.message || 'Approval failed', false); }
+    finally { setLoading(match.match_id, false); }
+  };
+
+  const handleReject = async (match: SuggestedMatch) => {
+    setConfirm(null);
+    setLoading(match.match_id, true);
+    try {
+      await dispatch(rejectMatchThunk({ paymentId: match.payment_id, matchId: match.match_id })).unwrap();
+      showToast('Match rejected — payment moved to unmatched', true);
+      dispatch(fetchPendingReviewThunk());
+    } catch (e: any) { showToast(e?.message || 'Rejection failed', false); }
+    finally { setLoading(match.match_id, false); }
+  };
+
+  const handleManualAssign = async (match: SuggestedMatch, invoiceId: number) => {
+    setAssignModal(null);
+    setLoading(match.match_id, true);
+    try {
+      await dispatch(manualAssignThunk({ paymentId: match.payment_id, invoiceId })).unwrap();
+      showToast('Payment manually assigned', true);
+      dispatch(fetchPendingReviewThunk());
+    } catch (e: any) { showToast(e?.message || 'Assignment failed', false); }
+    finally { setLoading(match.match_id, false); }
+  };
+
+  if (pendingReviewLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}><Spinner size={24} /></div>;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ padding: '0.35rem', borderRadius: 8, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}>
+            <IconWarning />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text)' }}>
+              {pendingReview.length} match{pendingReview.length !== 1 ? 'es' : ''} awaiting review
+            </p>
+            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-muted)' }}>
+              These payments had no invoice number. The system found likely matches — please confirm or reassign.
+            </p>
+          </div>
+        </div>
+        <button onClick={() => dispatch(fetchPendingReviewThunk())}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.8rem', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-muted)', cursor: 'pointer', fontSize: '0.72rem', fontFamily: 'inherit' }}>
+          <IconRefresh /> Refresh
+        </button>
+      </div>
+
+      {/* Empty state */}
+      {pendingReview.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', border: '1px dashed var(--color-border)', borderRadius: 12 }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>✓</div>
+          <p style={{ fontWeight: 600, color: 'var(--color-text)', margin: '0 0 0.3rem' }}>All caught up</p>
+          <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', margin: 0 }}>No matches are pending review right now.</p>
+        </div>
+      )}
+
+      {/* Cards */}
+      {pendingReview.map(match => {
+        const busy = actionLoading[match.match_id];
+        return (
+          <div key={match.match_id}
+            style={{ background: 'var(--color-surface)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 12, overflow: 'hidden', opacity: busy ? 0.7 : 1, transition: 'opacity 0.2s' }}>
+            {/* Card header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1.1rem', borderBottom: '1px solid var(--color-border)', background: 'rgba(251,191,36,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)', whiteSpace: 'nowrap' }}>
+                  <IconWarning /> Suggested
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>Match #{match.match_id}</span>
+              </div>
+              <span style={{ fontSize: '0.68rem', color: 'var(--color-faint)' }}>{timeAgo(match.created_at)}</span>
+            </div>
+
+            {/* Card body */}
+            <div style={{ padding: '1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Payment ↔ Invoice comparison */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ padding: '0.85rem', borderRadius: 10, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                  <p style={{ margin: '0 0 0.4rem', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <IconPayment /> Payment
+                  </p>
+                  <p style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{formatCurrency(match.payment_amount)}</p>
+                  <p style={{ margin: 0, fontSize: '0.68rem', color: 'var(--color-faint)' }}>ID #{match.payment_id} · {formatDate(match.paid_date)}</p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--color-faint)', fontSize: '1.2rem' }}>→</div>
+                <div style={{ padding: '0.85rem', borderRadius: 10, background: 'rgba(251,191,36,0.04)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                  <p style={{ margin: '0 0 0.4rem', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <IconInvoicePR /> Suggested Invoice
+                  </p>
+                  <p style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text)' }}>{match.invoice_number}</p>
+                  <p style={{ margin: 0, fontSize: '0.68rem', color: 'var(--color-faint)' }}>{formatCurrency(match.invoice_amount)}</p>
+                </div>
+              </div>
+
+              {/* Confidence */}
+              <div>
+                <p style={{ margin: '0 0 0.35rem', fontSize: '0.68rem', fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Confidence</p>
+                <ScoreBar score={match.match_score} />
+              </div>
+
+              {/* Match reason */}
+              {match.match_reason && (
+                <div style={{ padding: '0.6rem 0.75rem', borderRadius: 8, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>{match.match_reason}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button disabled={busy} onClick={() => setConfirm({ type: 'approve', match })}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'rgba(52,211,153,0.12)', color: '#34d399', cursor: busy ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  {busy ? <Spinner size={13} color="#34d399" /> : <IconThumbUp />} Approve
+                </button>
+                <button disabled={busy} onClick={() => setConfirm({ type: 'reject', match })}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'rgba(248,113,113,0.1)', color: '#f87171', cursor: busy ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  {busy ? <Spinner size={13} color="#f87171" /> : <IconThumbDown />} Reject
+                </button>
+               
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Confirm modal */}
+      {confirm && (
+        <ConfirmModal
+          title={confirm.type === 'approve' ? 'Approve this match?' : 'Reject this match?'}
+          message={confirm.type === 'approve'
+            ? `This will confirm that payment #${confirm.match.payment_id} (${formatCurrency(confirm.match.payment_amount)}) matches invoice ${confirm.match.invoice_number}. The invoice status will be updated immediately.`
+            : `This will mark the match as failed. Payment #${confirm.match.payment_id} will appear in unmatched payments for manual assignment.`}
+          confirmLabel={confirm.type === 'approve' ? 'Approve' : 'Reject'}
+          confirmColor={confirm.type === 'approve' ? '#34d399' : '#f87171'}
+          loading={actionLoading[confirm.match.match_id] ?? false}
+          onConfirm={() => confirm.type === 'approve' ? handleApprove(confirm.match) : handleReject(confirm.match)}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {/* Manual assign modal */}
+      {assignModal && (
+        <ManualAssignModal
+          paymentId={assignModal.payment_id}
+          suggestedInvoiceId={assignModal.invoice_id}
+          onAssign={(invoiceId) => handleManualAssign(assignModal, invoiceId)}
+          onCancel={() => setAssignModal(null)}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && createPortal(
+        <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 99999, padding: '0.75rem 1.1rem', borderRadius: 10, background: toast.ok ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)', border: `1px solid ${toast.ok ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}`, color: toast.ok ? '#34d399' : '#f87171', fontSize: '0.78rem', fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          {toast.msg}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function InvoiceTable() {
   const { invoices, loading, refreshing, error, refresh, clearError } = useInvoices();
 
@@ -387,6 +659,10 @@ export default function InvoiceTable() {
   const [overdueOnly, setOverdueOnly]     = useState(false);
   const [currentPage, setCurrentPage]     = useState(1);
   const [pageSize, setPageSize]           = useState(25);
+  const [activeTab, setActiveTab]         = useState<'invoices' | 'pending-review'>('invoices');
+
+  const { pendingReview } = useAppSelector(s => s.matching);
+  const pendingReviewCount = pendingReview.length;
 
   const getVersionHistory = (inv: Invoice): Invoice[] => {
     const num = (inv.invoice_number ?? '').trim().toLowerCase();
@@ -469,6 +745,32 @@ export default function InvoiceTable() {
           onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-muted)'; }}
         >{refreshing ? <Spinner size={13} /> : <IconRefresh />} Refresh</button>
       </div>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 0, marginBottom: '-0.5rem' }}>
+        {([
+          { key: 'invoices' as const,        label: 'All Invoices',   icon: null,            badge: null },
+          { key: 'pending-review' as const,  label: 'Pending Review', icon: null,            badge: pendingReviewCount, badgeColor: '#fbbf24' },
+        ] as { key: 'invoices' | 'pending-review'; label: string; icon: null; badge: number | null; badgeColor?: string }[]).map(t => {
+          const active = activeTab === t.key;
+          const isReview = t.key === 'pending-review';
+          return (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              style={{ padding: '0.65rem 1.1rem', fontSize: '0.75rem', fontWeight: active ? 700 : 500, fontFamily: "inherit", color: active ? (isReview ? '#fbbf24' : 'var(--color-accent)') : 'var(--color-muted)', background: 'none', border: 'none', borderBottom: active ? `2px solid ${isReview ? '#fbbf24' : 'var(--color-accent)'}` : '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s', marginBottom: '-1px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {t.label}
+              {t.badge != null && t.badge > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 99, fontSize: '0.6rem', fontWeight: 800, background: isReview ? 'rgba(251,191,36,0.15)' : 'rgba(37,99,235,0.12)', color: t.badgeColor ?? 'var(--color-accent)', border: `1px solid ${isReview ? 'rgba(251,191,36,0.3)' : 'rgba(37,99,235,0.2)'}` }}>
+                  {t.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 'pending-review' && <PendingReviewTab />}
+
+      {activeTab === 'invoices' && <>
 
       {!loading && activeInvoices.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.625rem' }}>
@@ -647,6 +949,9 @@ export default function InvoiceTable() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+
+      </> }
+
     </div>
   );
 }

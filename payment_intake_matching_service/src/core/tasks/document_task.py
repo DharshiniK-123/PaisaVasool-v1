@@ -1,9 +1,10 @@
 import json
 from datetime import date, datetime
 from decimal import Decimal
+from src.config.settings import settings
 
-PREVIEW_TTL = 600
-JOB_TTL = 3600
+PREVIEW_TTL = settings.PREVIEW_TTL
+JOB_TTL = settings.JOB_TTL
 
 
 class _SafeEncoder(json.JSONEncoder):

@@ -61,7 +61,6 @@ async def _generate_email(
         "MEDIUM": "Polite and friendly. Assume it was an oversight. No pressure.",
         "HIGH": "Firm and professional. Request immediate action. "
         "Mention consequences politely.",
-        "CRITICAL": "Urgent and formal. Mention escalation to senior management if not resolved.",
     }
 
     prompt = f"""

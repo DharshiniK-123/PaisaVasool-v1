@@ -10,6 +10,9 @@ export const ROUTES = {
   REMINDERS: '/reminders',
   ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_USERS:     '/admin/users',
+  ADMIN_INVOICES:  '/admin/invoices',
+  ADMIN_PAYMENTS:  '/admin/payments',
+  ADMIN_REMINDERS: '/admin/reminders',
 } as const;
 
 export const AUTH_COOKIE_KEYS = {

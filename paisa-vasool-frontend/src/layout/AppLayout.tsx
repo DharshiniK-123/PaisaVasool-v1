@@ -705,7 +705,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 }}>
                   {(user as { email?: string }).email}
                 </p>
-                <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>Operator</p>
+                <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>Finance Associate</p>
               </div>
             </div>
           )}

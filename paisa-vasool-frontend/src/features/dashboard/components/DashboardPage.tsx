@@ -128,16 +128,20 @@ function MiniPagination({ total, page, onPage }: { total: number; page: number; 
 }
 
 
+const DEFAULT_CONFIG = { label: 'Unknown', icon: <IconUnmatched />, bg: 'rgba(156,163,175,0.1)', text: '#9ca3af', border: 'rgba(156,163,175,0.25)', glow: 'rgba(156,163,175,0.06)' };
+
 const STATUS_CONFIG: Record<MatchStatus, { label: string; icon: React.ReactNode; bg: string; text: string; border: string; glow: string }> = {
-  FULL:        { label: 'Fully Paid',  icon: <IconCheck />,   bg: 'rgba(52,211,153,0.1)',  text: '#34d399', border: 'rgba(52,211,153,0.25)',  glow: 'rgba(52,211,153,0.08)'  },
-  PARTIAL:     { label: 'Partial',     icon: <IconPartial />, bg: 'rgba(251,191,36,0.1)',  text: '#fbbf24', border: 'rgba(251,191,36,0.25)',  glow: 'rgba(251,191,36,0.06)'  },
-  OVERPAYMENT: { label: 'Overpayment', icon: <IconOver />,    bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
-  DUPLICATE:   { label: 'Duplicate',   icon: <IconPartial />, bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
-  FAILED:      { label: 'Failed',      icon: <IconFailed />,  bg: 'rgba(248,113,113,0.1)', text: '#f87171', border: 'rgba(248,113,113,0.25)', glow: 'rgba(248,113,113,0.06)' },
+  FULL:            { label: 'Fully Paid',   icon: <IconCheck />,   bg: 'rgba(52,211,153,0.1)',  text: '#34d399', border: 'rgba(52,211,153,0.25)',  glow: 'rgba(52,211,153,0.08)'  },
+  PARTIAL:         { label: 'Partial',      icon: <IconPartial />, bg: 'rgba(251,191,36,0.1)',  text: '#fbbf24', border: 'rgba(251,191,36,0.25)',  glow: 'rgba(251,191,36,0.06)'  },
+  OVERPAYMENT:     { label: 'Overpayment',  icon: <IconOver />,    bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
+  DUPLICATE:       { label: 'Duplicate',    icon: <IconPartial />, bg: 'rgba(139,92,246,0.1)',  text: '#a78bfa', border: 'rgba(139,92,246,0.25)',  glow: 'rgba(139,92,246,0.06)'  },
+  FAILED:          { label: 'Failed',       icon: <IconFailed />,  bg: 'rgba(248,113,113,0.1)', text: '#f87171', border: 'rgba(248,113,113,0.25)', glow: 'rgba(248,113,113,0.06)' },
+  SUGGESTED:       { label: 'Suggested',    icon: <IconCheck />,   bg: 'rgba(96,165,250,0.1)',  text: '#60a5fa', border: 'rgba(96,165,250,0.25)',  glow: 'rgba(96,165,250,0.06)'  },
+  MANUALLY_MATCHED:{ label: 'Manual Match', icon: <IconCheck />,   bg: 'rgba(52,211,153,0.1)',  text: '#34d399', border: 'rgba(52,211,153,0.25)',  glow: 'rgba(52,211,153,0.08)'  },
 };
 
 function StatusBadge({ status }: { status: MatchStatus }) {
-  const c = STATUS_CONFIG[status];
+  const c = STATUS_CONFIG[status] || DEFAULT_CONFIG;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.18rem 0.6rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
       {c.icon} {c.label}
@@ -165,7 +169,7 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
         {!loading && summary && total > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', height: 28 }}>
             {cards.filter(c => c.count > 0).map(c => {
-              const cfg = STATUS_CONFIG[c.key];
+              const cfg = STATUS_CONFIG[c.key] || DEFAULT_CONFIG;
               const pct = (c.count / total) * 100;
               return (
                 <div key={c.key} title={`${c.label}: ${c.count}`}
@@ -179,7 +183,7 @@ function SummaryCards({ summary, loading }: { summary: DashboardSummary | null; 
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.625rem' }}>
         {cards.map((card, i) => {
-          const cfg = STATUS_CONFIG[card.key];
+          const cfg = STATUS_CONFIG[card.key] || DEFAULT_CONFIG;
           return (
             <div key={card.key} onClick={() => navigate(ROUTES.MATCHING)} className="stat-card"
               style={{ cursor: 'pointer', animation: `fadeSlideUp 0.4s var(--ease-out-expo) ${i * 0.06}s both`, background: `linear-gradient(135deg, var(--color-surface) 0%, ${cfg.glow} 100%)` }}>
@@ -340,7 +344,7 @@ function RecentMatches({ matches, loading }: { matches: MatchRecord[]; loading: 
         <>
           <div>
             {paged.map((m, i) => {
-              const cfg = STATUS_CONFIG[m.match_status];
+              const cfg = STATUS_CONFIG[m.match_status] || DEFAULT_CONFIG;
               return (
                 <div key={m.id}
                   style={{ padding: '0.875rem 1.25rem', borderBottom: i < paged.length - 1 ? '1px solid var(--color-border)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', transition: 'background 0.15s', animation: `fadeSlideUp 0.35s var(--ease-out-expo) ${i * 0.04}s both` }}

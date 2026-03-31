@@ -8,6 +8,8 @@ import {
   DoughnutController,
   LineElement, LineController,
   PointElement, Filler,
+  RadialLinearScale,
+  RadarController,
   Title,
 } from 'chart.js';
 import { adminService } from '../../UserManagement/services/adminService';
@@ -22,10 +24,12 @@ ChartJS.register(
   DoughnutController,
   LineElement, LineController,
   PointElement, Filler,
+  RadialLinearScale,
+  RadarController,
   Title,
 );
 
-
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconUsers    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 const IconActive   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IconInactive = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>;
@@ -36,7 +40,10 @@ const IconPower    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill=
 const IconInvoice  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IconPayment  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
 const IconMatch    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const IconClose    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const IconTrophy   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="11"/><path d="M7 4V2H17V4"/><path d="M7 4C7 9 12 11 12 11C12 11 17 9 17 4"/><path d="M4 4H7"/><path d="M17 4H20"/><path d="M4 4C4 7 6 8 7 8"/><path d="M20 4C20 7 18 8 17 8"/></svg>;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function Spinner({ size = 16, color = 'var(--color-accent)' }: { size?: number; color?: string }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${color}33`, borderTopColor: color, animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />;
 }
@@ -44,6 +51,33 @@ function SkeletonBar({ w = '100%', h = 14 }: { w?: string | number; h?: number }
   return <div style={{ width: w, height: h, borderRadius: 4, background: 'var(--color-surface-2)', animation: 'shimmer 1.4s ease infinite' }} />;
 }
 
+const AVATAR_COLORS: [string, string][] = [
+  ['#6366f1','#6366f120'],['#0ea5e9','#0ea5e920'],['#10b981','#10b98120'],
+  ['#f59e0b','#f59e0b20'],['#ec4899','#ec489920'],['#8b5cf6','#8b5cf620'],
+];
+const ROLE_COLORS: Record<string, [string, string]> = {
+  finance_associate: ['#6366f1', 'rgba(99,102,241,0.1)'],
+  admin:             ['#f59e0b', 'rgba(245,158,11,0.1)'],
+};
+
+function getInitials(u: FinanceUser) {
+  return `${u.first_name[0] ?? ''}${u.last_name[0] ?? ''}`.toUpperCase();
+}
+function getAvatarColors(u: FinanceUser): [string, string] {
+  return AVATAR_COLORS[u.id % AVATAR_COLORS.length];
+}
+function formatRelativeTime(dateStr: string | null): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr), now = new Date();
+  const diffH = Math.floor((now.getTime() - d.getTime()) / 3600000);
+  const diffD = Math.floor(diffH / 24);
+  if (diffH < 1) return 'Just now';
+  if (diffH < 24) return `${diffH}h ago`;
+  if (diffD < 7) return `${diffD}d ago`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+// ─── Chart Card ───────────────────────────────────────────────────────────────
 function ChartCard({ title, subtitle, children, loading }: {
   title: string; subtitle?: string; children: React.ReactNode; loading?: boolean;
 }) {
@@ -54,20 +88,39 @@ function ChartCard({ title, subtitle, children, loading }: {
         {subtitle && <p style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '0.15rem' }}>{subtitle}</p>}
       </div>
       <div style={{ padding: '1.25rem' }}>
-        {loading
-          ? <SkeletonBar h={200} />
-          : children
-        }
+        {loading ? <SkeletonBar h={200} /> : children}
       </div>
     </div>
   );
 }
 
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+function StatCard({ label, value, icon, color, glow, loading, sub }: {
+  label: string; value: number | string; icon: React.ReactNode;
+  color: string; glow: string; loading: boolean; sub?: string;
+}) {
+  return (
+    <div
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, minWidth: 160, transition: 'box-shadow 0.2s, transform 0.2s', position: 'relative', overflow: 'hidden' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 24px ${glow}`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+    >
+      <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: glow, filter: 'blur(24px)', opacity: 0.35, pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--color-muted)', fontWeight: 600 }}>{label}</p>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}18`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
+      </div>
+      {loading ? <SkeletonBar w="60%" h={32} /> : <p className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }}>{value}</p>}
+      {sub && !loading && <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{sub}</p>}
+      {sub && loading && <SkeletonBar w="80%" h={12} />}
+    </div>
+  );
+}
 
+// ─── Active/Inactive Doughnut ─────────────────────────────────────────────────
 function ActiveInactiveChart({ active, inactive }: { active: number; inactive: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef  = useRef<ChartJS | null>(null);
-
   useEffect(() => {
     if (!canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
@@ -75,47 +128,20 @@ function ActiveInactiveChart({ active, inactive }: { active: number; inactive: n
       type: 'doughnut',
       data: {
         labels: ['Active', 'Inactive'],
-        datasets: [{
-          data: [active || 0, inactive || 0],
-          backgroundColor: ['rgba(22,163,74,0.85)', 'rgba(239,68,68,0.75)'],
-          borderColor:     ['rgba(22,163,74,1)',    'rgba(239,68,68,1)'],
-          borderWidth: 2,
-          hoverOffset: 6,
-        }],
+        datasets: [{ data: [active || 0, inactive || 0], backgroundColor: ['rgba(22,163,74,0.85)', 'rgba(239,68,68,0.75)'], borderColor: ['rgba(22,163,74,1)', 'rgba(239,68,68,1)'], borderWidth: 2, hoverOffset: 6 }],
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '72%',
+        responsive: true, maintainAspectRatio: false, cutout: '72%',
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: 'rgb(148,163,184)',
-              font: { family: "'DM Sans', sans-serif", size: 12 },
-              padding: 16,
-              usePointStyle: true,
-              pointStyleWidth: 8,
-            },
-          },
-          tooltip: {
-            backgroundColor: 'rgba(15,23,42,0.9)',
-            titleColor: '#fff',
-            bodyColor: 'rgb(148,163,184)',
-            borderColor: 'rgba(255,255,255,0.1)',
-            borderWidth: 1,
-            padding: 10,
-            callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} users` },
-          },
+          legend: { position: 'bottom', labels: { color: 'rgb(148,163,184)', font: { family: "'DM Sans', sans-serif", size: 12 }, padding: 16, usePointStyle: true, pointStyleWidth: 8 } },
+          tooltip: { backgroundColor: 'rgba(15,23,42,0.9)', titleColor: '#fff', bodyColor: 'rgb(148,163,184)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 10, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} users` } },
         },
       },
     });
     return () => { chartRef.current?.destroy(); };
   }, [active, inactive]);
-
   const total = active + inactive;
   const pct   = total > 0 ? Math.round((active / total) * 100) : 0;
-
   return (
     <div style={{ position: 'relative', height: 220 }}>
       <canvas ref={canvasRef} />
@@ -127,11 +153,10 @@ function ActiveInactiveChart({ active, inactive }: { active: number; inactive: n
   );
 }
 
-
+// ─── User Growth Line Chart ───────────────────────────────────────────────────
 function UserGrowthChart({ users }: { users: FinanceUser[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef  = useRef<ChartJS | null>(null);
-
   const now    = new Date();
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
@@ -146,7 +171,6 @@ function UserGrowthChart({ users }: { users: FinanceUser[] }) {
   });
   let cum = 0;
   const cumCounts = months.map(m => { cum += m.count; return cum; });
-
   useEffect(() => {
     if (!canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
@@ -155,27 +179,8 @@ function UserGrowthChart({ users }: { users: FinanceUser[] }) {
       data: {
         labels: months.map(m => m.label),
         datasets: [
-          {
-            label: 'New Users',
-            data: months.map(m => m.count),
-            borderColor: 'rgba(37,99,235,1)',
-            backgroundColor: 'rgba(37,99,235,0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: 'rgba(37,99,235,1)',
-            pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.4, fill: true, yAxisID: 'y',
-          },
-          {
-            label: 'Total Users',
-            data: cumCounts,
-            borderColor: 'rgba(52,211,153,1)',
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            borderDash: [5, 4],
-            pointBackgroundColor: 'rgba(52,211,153,1)',
-            pointRadius: 4, pointHoverRadius: 6,
-            tension: 0.4, fill: false, yAxisID: 'y',
-          },
+          { label: 'New Users', data: months.map(m => m.count), borderColor: 'rgba(37,99,235,1)', backgroundColor: 'rgba(37,99,235,0.1)', borderWidth: 2, pointBackgroundColor: 'rgba(37,99,235,1)', pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: true, yAxisID: 'y' },
+          { label: 'Total Users', data: cumCounts, borderColor: 'rgba(52,211,153,1)', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 4], pointBackgroundColor: 'rgba(52,211,153,1)', pointRadius: 4, pointHoverRadius: 6, tension: 0.4, fill: false, yAxisID: 'y' },
         ],
       },
       options: {
@@ -194,15 +199,13 @@ function UserGrowthChart({ users }: { users: FinanceUser[] }) {
     return () => { chartRef.current?.destroy(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
-
   return <div style={{ height: 220 }}><canvas ref={canvasRef} /></div>;
 }
 
-
+// ─── Activity Breakdown Bar Chart ─────────────────────────────────────────────
 function UserActivityChart({ users, activityMap }: { users: FinanceUser[]; activityMap: Record<number, UserActivityStat> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef  = useRef<ChartJS | null>(null);
-
   const sorted = users
     .filter(u => activityMap[u.id])
     .sort((a, b) => {
@@ -210,7 +213,6 @@ function UserActivityChart({ users, activityMap }: { users: FinanceUser[]; activ
       return (sb.invoices_uploaded + sb.payments_uploaded + sb.matches_made) - (sa.invoices_uploaded + sa.payments_uploaded + sa.matches_made);
     })
     .slice(0, 8);
-
   useEffect(() => {
     if (!canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
@@ -239,24 +241,20 @@ function UserActivityChart({ users, activityMap }: { users: FinanceUser[]; activ
     return () => { chartRef.current?.destroy(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, activityMap]);
-
   if (sorted.length === 0) return <div style={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.82rem' }}>No activity data yet</div>;
   return <div style={{ height: 240 }}><canvas ref={canvasRef} /></div>;
 }
 
-
+// ─── Top Users Horizontal Bar ─────────────────────────────────────────────────
 function TopUsersChart({ users, activityMap }: { users: FinanceUser[]; activityMap: Record<number, UserActivityStat> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef  = useRef<ChartJS | null>(null);
-
   const ranked = users
     .filter(u => activityMap[u.id])
     .map(u => ({ name: `${u.first_name} ${u.last_name}`, total: activityMap[u.id].invoices_uploaded + activityMap[u.id].payments_uploaded + activityMap[u.id].matches_made }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 6);
-
   const palette = ['rgba(37,99,235,0.85)', 'rgba(52,211,153,0.85)', 'rgba(96,165,250,0.85)', 'rgba(245,158,11,0.85)', 'rgba(168,85,247,0.85)', 'rgba(236,72,153,0.85)'];
-
   useEffect(() => {
     if (!canvasRef.current) return;
     if (chartRef.current) chartRef.current.destroy();
@@ -264,13 +262,7 @@ function TopUsersChart({ users, activityMap }: { users: FinanceUser[]; activityM
       type: 'bar',
       data: {
         labels: ranked.map(r => r.name),
-        datasets: [{
-          label: 'Total Activity',
-          data: ranked.map(r => r.total),
-          backgroundColor: ranked.map((_, i) => palette[i % palette.length]),
-          borderColor: ranked.map((_, i) => palette[i % palette.length].replace('0.85', '1')),
-          borderWidth: 1, borderRadius: 6,
-        }],
+        datasets: [{ label: 'Total Activity', data: ranked.map(r => r.total), backgroundColor: ranked.map((_, i) => palette[i % palette.length]), borderColor: ranked.map((_, i) => palette[i % palette.length].replace('0.85', '1')), borderWidth: 1, borderRadius: 6 }],
       },
       options: {
         indexAxis: 'y',
@@ -288,35 +280,222 @@ function TopUsersChart({ users, activityMap }: { users: FinanceUser[]; activityM
     return () => { chartRef.current?.destroy(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, activityMap]);
-
   if (ranked.length === 0) return <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: '0.82rem' }}>No activity data yet</div>;
   return <div style={{ height: Math.max(160, ranked.length * 44) }}><canvas ref={canvasRef} /></div>;
 }
 
-
-function StatCard({ label, value, icon, color, glow, loading, sub }: {
-  label: string; value: number | string; icon: React.ReactNode;
-  color: string; glow: string; loading: boolean; sub?: string;
+// ─── USER DETAIL POPUP CHART ──────────────────────────────────────────────────
+function UserDetailModal({
+  user, stats, allStats, rank, onClose, onToggle, toggling,
+}: {
+  user: FinanceUser;
+  stats: UserActivityStat | null;
+  allStats: Record<number, UserActivityStat>;
+  rank: number;
+  onClose: () => void;
+  onToggle: (u: FinanceUser) => void;
+  toggling: boolean;
 }) {
+  const donutRef  = useRef<HTMLCanvasElement>(null);
+  const donutChart = useRef<ChartJS | null>(null);
+  const isActive  = user.is_active === 'active';
+  const [fg, bg]  = getAvatarColors(user);
+  const initials  = getInitials(user);
+
+  // Compute share vs others
+  const totalInvoices = Math.max(1, Object.values(allStats).reduce((s, a) => s + a.invoices_uploaded, 0));
+  const totalPayments = Math.max(1, Object.values(allStats).reduce((s, a) => s + a.payments_uploaded, 0));
+  const totalMatches  = Math.max(1, Object.values(allStats).reduce((s, a) => s + a.matches_made, 0));
+
+  const inv  = stats?.invoices_uploaded ?? 0;
+  const pay  = stats?.payments_uploaded ?? 0;
+  const mat  = stats?.matches_made ?? 0;
+  const total = inv + pay + mat;
+
+  const matchRate = (inv + pay) > 0 ? Math.round((mat / ((inv + pay) / 2)) * 100) : 0;
+
+  // Donut chart — invoices / payments / matches breakdown
+  useEffect(() => {
+    if (!donutRef.current) return;
+    if (donutChart.current) donutChart.current.destroy();
+    donutChart.current = new ChartJS(donutRef.current, {
+      type: 'doughnut',
+      data: {
+        labels: ['Invoices', 'Payments', 'Matches'],
+        datasets: [{
+          data: [inv || 0, pay || 0, mat || 0],
+          backgroundColor: ['rgba(37,99,235,0.85)', 'rgba(96,165,250,0.85)', 'rgba(52,211,153,0.85)'],
+          borderColor: ['rgba(37,99,235,1)', 'rgba(96,165,250,1)', 'rgba(52,211,153,1)'],
+          borderWidth: 2,
+          hoverOffset: 8,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: 'rgb(148,163,184)', font: { family: "'DM Sans', sans-serif", size: 11 }, padding: 14, usePointStyle: true, pointStyleWidth: 7 } },
+          tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#fff', bodyColor: 'rgb(148,163,184)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 10 },
+        },
+      },
+    });
+    return () => { donutChart.current?.destroy(); };
+  }, [inv, pay, mat]);
+
+  // Share bars
+  const shares = [
+    { label: 'Invoice Share', value: inv, total: totalInvoices, color: 'rgba(37,99,235,1)', bg: 'rgba(37,99,235,0.12)' },
+    { label: 'Payment Share', value: pay, total: totalPayments, color: 'rgba(96,165,250,1)', bg: 'rgba(96,165,250,0.12)' },
+    { label: 'Match Share',   value: mat, total: totalMatches,  color: 'rgba(52,211,153,1)', bg: 'rgba(52,211,153,0.12)' },
+  ];
+
   return (
-    <div
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, minWidth: 160, transition: 'box-shadow 0.2s, transform 0.2s', position: 'relative', overflow: 'hidden' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 24px ${glow}`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-    >
-      <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: glow, filter: 'blur(24px)', opacity: 0.35, pointerEvents: 'none' }} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--color-muted)', fontWeight: 600 }}>{label}</p>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}18`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>{icon}</div>
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(10,15,30,0.6)', backdropFilter: 'blur(6px)', zIndex: 80, animation: 'fadeIn 0.2s ease both' }}
+      />
+
+      {/* Modal */}
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        width: '100%', maxWidth: 580,
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 18,
+        zIndex: 90,
+        boxShadow: '0 32px 80px rgba(0,0,10,0.4)',
+        animation: 'popIn 0.25s cubic-bezier(0.16,1,0.3,1) both',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}>
+
+        {/* Header */}
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-surface-2)', borderRadius: '18px 18px 0 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: bg, border: `2px solid ${fg}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: fg }}>{initials}</span>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)' }}>{user.first_name} {user.last_name}</p>
+                {rank <= 3 && <span style={{ fontSize: '0.9rem' }}>{['🥇','🥈','🥉'][rank - 1]}</span>}
+              </div>
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>{user.email}</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <span style={{ padding: '0.2rem 0.65rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: isActive ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)', color: isActive ? '#15803d' : '#b91c1c', border: `1px solid ${isActive ? 'rgba(22,163,74,0.2)' : 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? '#16a34a' : '#ef4444' }} />
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)' }}>
+              <IconClose />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Top KPI row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+            {[
+              { label: 'Invoices',    value: inv,       color: 'rgba(37,99,235,1)',  icon: <IconInvoice /> },
+              { label: 'Payments',    value: pay,       color: 'rgba(96,165,250,1)', icon: <IconPayment /> },
+              { label: 'Matches',     value: mat,       color: 'rgba(52,211,153,1)', icon: <IconMatch /> },
+              { label: 'Total Actions', value: total,   color: 'rgba(168,85,247,1)', icon: <IconActivity /> },
+            ].map(k => (
+              <div key={k.label} style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', fontWeight: 600 }}>{k.label}</p>
+                  <span style={{ color: k.color, opacity: 0.8 }}>{k.icon}</span>
+                </div>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }} className="font-display">{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Donut + Share bars */}
+          {stats ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {/* Donut */}
+              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1rem' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.75rem' }}>Activity Breakdown</p>
+                <div style={{ position: 'relative', height: 200 }}>
+                  <canvas ref={donutRef} />
+                  <div style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                    <p style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }} className="font-display">{total}</p>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--color-muted)', marginTop: '0.15rem' }}>total</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Share bars + match rate */}
+              <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 12, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text)' }}>Platform Share</p>
+                {shares.map(s => {
+                  const pct = Math.round((s.value / s.total) * 100);
+                  return (
+                    <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{s.label}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text)' }}>{pct}%</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 99, background: s.bg, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 99, background: s.color, transition: 'width 0.8s cubic-bezier(0.16,1,0.3,1)' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Match rate badge */}
+                <div style={{ marginTop: 'auto', padding: '0.625rem 0.875rem', borderRadius: 9, background: matchRate >= 70 ? 'rgba(52,211,153,0.08)' : matchRate >= 40 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${matchRate >= 70 ? 'rgba(52,211,153,0.2)' : matchRate >= 40 ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>Match Rate</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 800, color: matchRate >= 70 ? '#10b981' : matchRate >= 40 ? '#f59e0b' : '#ef4444' }} className="font-display">{matchRate}%</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--color-surface-2)', borderRadius: 12, border: '1px solid var(--color-border)' }}>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.82rem' }}>No activity data available for this user yet.</p>
+            </div>
+          )}
+
+          {/* Meta info row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem' }}>
+            {[
+              { label: 'Role',         value: user.role.replace('_', ' ') },
+              { label: 'Joined',       value: user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
+              { label: 'Last Active',  value: formatRelativeTime(stats?.last_active ?? null) },
+            ].map(m => (
+              <div key={m.label} style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 9, padding: '0.625rem 0.875rem' }}>
+                <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '0.25rem' }}>{m.label}</p>
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)', textTransform: 'capitalize' }}>{m.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Action row */}
+          <div style={{ display: 'flex', gap: '0.625rem', paddingTop: '0.25rem' }}>
+            <button onClick={onClose} style={{ flex: 1, padding: '0.65rem', borderRadius: 9, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-muted)', fontSize: '0.82rem', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}>
+              Close
+            </button>
+            <button
+              onClick={() => onToggle(user)}
+              disabled={toggling}
+              style={{ flex: 1, padding: '0.65rem', borderRadius: 9, border: `1px solid ${isActive ? 'rgba(239,68,68,0.25)' : 'rgba(22,163,74,0.25)'}`, background: isActive ? 'rgba(239,68,68,0.06)' : 'rgba(22,163,74,0.06)', color: isActive ? '#b91c1c' : '#15803d', fontSize: '0.82rem', fontWeight: 700, fontFamily: "'DM Sans', sans-serif", cursor: toggling ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: toggling ? 0.6 : 1 }}
+            >
+              {toggling ? <Spinner size={13} color={isActive ? '#b91c1c' : '#15803d'} /> : <IconPower />}
+              {toggling ? 'Updating…' : isActive ? 'Deactivate User' : 'Activate User'}
+            </button>
+          </div>
+        </div>
       </div>
-      {loading ? <SkeletonBar w="60%" h={32} /> : <p className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }}>{value}</p>}
-      {sub && !loading && <p style={{ fontSize: '0.68rem', color: 'var(--color-muted)' }}>{sub}</p>}
-      {sub && loading && <SkeletonBar w="80%" h={12} />}
-    </div>
+    </>
   );
 }
 
-
+// ─── Activity Bar ─────────────────────────────────────────────────────────────
 function ActivityBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.max(4, (value / max) * 100) : 4;
   return (
@@ -326,28 +505,22 @@ function ActivityBar({ value, max, color }: { value: number; max: number; color:
   );
 }
 
-
-function UserActivityRow({ user, stats, maxInvoices, maxPayments, maxMatches, rank, onToggle, toggling }: {
-  user: FinanceUser; stats: UserActivityStat | null; maxInvoices: number; maxPayments: number; maxMatches: number; rank: number; onToggle: (u: FinanceUser) => void; toggling: boolean;
+// ─── User Activity Row ────────────────────────────────────────────────────────
+function UserActivityRow({ user, stats, maxInvoices, maxPayments, maxMatches, rank, onToggle, toggling, onClickUser }: {
+  user: FinanceUser; stats: UserActivityStat | null; maxInvoices: number; maxPayments: number; maxMatches: number; rank: number; onToggle: (u: FinanceUser) => void; toggling: boolean; onClickUser: (u: FinanceUser) => void;
 }) {
   const isActive   = user.is_active === 'active';
-  const initials   = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
+  const [fg, bg]   = getAvatarColors(user);
+  const initials   = getInitials(user);
   const joinedDate = user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
-  const lastActive = stats?.last_active ? (() => {
-    const d = new Date(stats.last_active), now = new Date();
-    const diffH = Math.floor((now.getTime() - d.getTime()) / 3600000);
-    const diffD = Math.floor(diffH / 24);
-    if (diffH < 1) return 'Just now'; if (diffH < 24) return `${diffH}h ago`; if (diffD < 7) return `${diffD}d ago`;
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  })() : '—';
-  const avatarColors = [['#6366f1','#6366f120'],['#0ea5e9','#0ea5e920'],['#10b981','#10b98120'],['#f59e0b','#f59e0b20'],['#ec4899','#ec489920'],['#8b5cf6','#8b5cf620']];
-  const [fg, bg] = avatarColors[user.id % avatarColors.length];
+  const lastActive = formatRelativeTime(stats?.last_active ?? null);
 
   return (
     <div
-      style={{ display: 'grid', gridTemplateColumns: '32px 2.2fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderBottom: '1px solid var(--color-border)', opacity: isActive ? 1 : 0.55, transition: 'background 0.15s' }}
+      style={{ display: 'grid', gridTemplateColumns: '32px 2.2fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '0.875rem 1.25rem', alignItems: 'center', borderBottom: '1px solid var(--color-border)', opacity: isActive ? 1 : 0.55, transition: 'background 0.15s', cursor: 'pointer' }}
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)'}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+      onClick={() => onClickUser(user)}
     >
       <span style={{ fontSize: '0.68rem', fontWeight: 700, color: rank <= 3 ? '#f59e0b' : 'var(--color-faint)', textAlign: 'center' }}>{rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] : `#${rank}`}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
@@ -375,7 +548,7 @@ function UserActivityRow({ user, stats, maxInvoices, maxPayments, maxMatches, ra
         <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>{lastActive}</span>
         <span style={{ fontSize: '0.62rem', color: 'var(--color-faint)' }}>Joined {joinedDate}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
         <span style={{ padding: '0.18rem 0.55rem', borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: isActive ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.08)', color: isActive ? '#15803d' : '#b91c1c', border: `1px solid ${isActive ? 'rgba(22,163,74,0.2)' : 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? '#16a34a' : '#ef4444' }} />
           {isActive ? 'Active' : 'Off'}
@@ -388,7 +561,7 @@ function UserActivityRow({ user, stats, maxInvoices, maxPayments, maxMatches, ra
   );
 }
 
-
+// ─── Confirm Dialog ───────────────────────────────────────────────────────────
 function ConfirmDialog({ user, onConfirm, onCancel, loading }: { user: FinanceUser; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
   const isActive = user.is_active === 'active';
   const action = isActive ? 'Deactivate' : 'Activate';
@@ -397,8 +570,8 @@ function ConfirmDialog({ user, onConfirm, onCancel, loading }: { user: FinanceUs
   const bc = isActive ? 'rgba(239,68,68,0.2)' : 'rgba(22,163,74,0.2)';
   return (
     <>
-      <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', zIndex: 60 }} />
-      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: 420, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 16, zIndex: 70, padding: '1.75rem', boxShadow: '0 24px 64px rgba(15,40,90,0.18)', animation: 'popIn 0.2s cubic-bezier(0.16,1,0.3,1) both' }}>
+      <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', zIndex: 100 }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: 420, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 16, zIndex: 110, padding: '1.75rem', boxShadow: '0 24px 64px rgba(15,40,90,0.18)', animation: 'popIn 0.2s cubic-bezier(0.16,1,0.3,1) both' }}>
         <div style={{ width: 48, height: 48, borderRadius: 12, marginBottom: '1.25rem', background: bg, border: `1px solid ${bc}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ac }}><IconPower /></div>
         <h3 className="font-display" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.5rem' }}>{action} User?</h3>
         <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
@@ -412,17 +585,11 @@ function ConfirmDialog({ user, onConfirm, onCancel, loading }: { user: FinanceUs
           </button>
         </div>
       </div>
-      <style>{`@keyframes popIn { from { opacity:0; transform:translate(-50%,-48%) scale(0.95); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }`}</style>
     </>
   );
 }
 
-const ROLE_COLORS: Record<string, [string, string]> = {
-  finance_associate: ['#6366f1', 'rgba(99,102,241,0.1)'],
-  admin:             ['#f59e0b', 'rgba(245,158,11,0.1)'],
-};
-
-
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
 
@@ -437,6 +604,9 @@ export default function AdminDashboardPage() {
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [refreshing,   setRefreshing]   = useState(false);
+
+  // NEW — selected user for detail popup
+  const [selectedUser, setSelectedUser] = useState<FinanceUser | null>(null);
 
   const fetchUsers = useCallback(async (silent = false) => {
     if (!silent) setLoadingUsers(true);
@@ -474,8 +644,16 @@ export default function AdminDashboardPage() {
       const action = updated.is_active === 'active' ? 'activated' : 'deactivated';
       setSuccessMsg(`${updated.first_name} ${updated.last_name} has been ${action}.`);
       setTimeout(() => setSuccessMsg(''), 4000);
+      // Refresh selected user if it was the one toggled
+      if (selectedUser?.id === updated.id) setSelectedUser(updated);
     } catch (err: unknown) { setError(extractErrorMessage(err)); }
     finally { setToggling(null); setConfirmUser(null); }
+  };
+
+  // Toggle from within the modal — opens confirm dialog
+  const handleToggleFromModal = (u: FinanceUser) => {
+    setSelectedUser(null);
+    setConfirmUser(u);
   };
 
   const activeCount   = users.filter(u => u.is_active === 'active').length;
@@ -504,9 +682,15 @@ export default function AdminDashboardPage() {
   const maxMatches  = Math.max(1, ...Object.values(activityMap).map(s => s.matches_made));
   const roleCounts  = users.reduce((acc, u) => { acc[u.role] = (acc[u.role] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
+  // rank for selected user
+  const selectedRank = selectedUser
+    ? filtered.findIndex(u => u.id === selectedUser.id) + 1
+    : 1;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--color-accent)', fontWeight: 700, marginBottom: '0.25rem' }}>Admin</p>
@@ -527,6 +711,7 @@ export default function AdminDashboardPage() {
       {error      && <div className="banner banner-error   animate-fade-in"><span className="banner-icon">⚠</span><p>{error}</p></div>}
       {successMsg && <div className="banner banner-success animate-fade-in"><span className="banner-icon">✓</span><p>{successMsg}</p></div>}
 
+      {/* User stat cards */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <StatCard label="Total Users"       value={users.length}  icon={<IconUsers />}    color="var(--color-accent)" glow="rgba(37,99,235,0.18)"  loading={loadingUsers} sub={`${roleCounts['finance_associate'] ?? 0} finance associates`} />
         <StatCard label="Active"            value={activeCount}   icon={<IconActive />}   color="#16a34a"             glow="rgba(22,163,74,0.18)"  loading={loadingUsers} sub={users.length > 0 ? `${Math.round((activeCount / users.length) * 100)}% of all users` : undefined} />
@@ -534,6 +719,7 @@ export default function AdminDashboardPage() {
         <StatCard label="Joined This Month" value={thisMonth}     icon={<IconNewUser />}  color="#f59e0b"             glow="rgba(245,158,11,0.15)" loading={loadingUsers} sub="New signups" />
       </div>
 
+      {/* Platform totals */}
       {!loadingActivity && hasStats && (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {[
@@ -552,6 +738,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* Charts row 1 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
         <ChartCard title="User Status" subtitle="Active vs inactive breakdown" loading={loadingUsers}>
           {!loadingUsers && <ActiveInactiveChart active={activeCount} inactive={inactiveCount} />}
@@ -561,13 +748,21 @@ export default function AdminDashboardPage() {
         </ChartCard>
       </div>
 
+      {/* Charts row 2 */}
       {hasStats && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <ChartCard title="Activity Breakdown" subtitle="Invoices, payments & matches per user" loading={loadingActivity}>
+          <ChartCard title="Activity Breakdown" subtitle="Invoices, payments & matches per user (top 8)" loading={loadingActivity}>
             {!loadingActivity && <UserActivityChart users={users} activityMap={activityMap} />}
           </ChartCard>
           <ChartCard title="Top Users" subtitle="Ranked by total actions" loading={loadingActivity}>
-            {!loadingActivity && <TopUsersChart users={users} activityMap={activityMap} />}
+            {!loadingActivity && (
+              <div>
+                <TopUsersChart users={users} activityMap={activityMap} />
+                <p style={{ fontSize: '0.62rem', color: 'var(--color-faint)', marginTop: '0.625rem', textAlign: 'center' }}>
+                  <IconTrophy /> Click any row below to see a user's full breakdown
+                </p>
+              </div>
+            )}
           </ChartCard>
         </div>
       )}
@@ -576,18 +771,22 @@ export default function AdminDashboardPage() {
         <div style={{ padding: '0.875rem 1.25rem', borderRadius: 10, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span>⏳</span>
           <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--color-text)' }}>Activity charts will appear here</strong> once users upload documents. Stats are tracked from new uploads onwards.
+            <strong style={{ color: 'var(--color-text)' }}>Activity charts will appear here</strong> once users upload documents.
           </p>
         </div>
       )}
 
+      {/* User Activity Table */}
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', background: 'var(--color-surface-2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-accent-soft)', border: '1px solid rgba(37,99,235,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}><IconActivity /></div>
             <div>
               <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>User Activity</p>
-              <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>{loadingUsers ? 'Loading…' : `${filtered.length} of ${users.length} users`}</p>
+              <p style={{ fontSize: '0.62rem', color: 'var(--color-muted)' }}>
+                {loadingUsers ? 'Loading…' : `${filtered.length} of ${users.length} users`}
+                {!loadingUsers && <span style={{ marginLeft: '0.4rem', color: 'var(--color-faint)' }}>· Click a row to view details</span>}
+              </p>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
@@ -605,6 +804,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Table header */}
         <div style={{ display: 'grid', gridTemplateColumns: '32px 2.2fr 1fr 1fr 1fr 1fr 120px', gap: '1rem', padding: '0.55rem 1.25rem', background: 'var(--color-surface-2)', borderBottom: '1px solid var(--color-border)' }}>
           {[{ label: '#', align: 'center' as const }, { label: 'User', align: 'left' as const }, { label: 'Invoices', align: 'left' as const }, { label: 'Payments', align: 'left' as const }, { label: 'Matches', align: 'left' as const }, { label: 'Last Active', align: 'left' as const }, { label: 'Status', align: 'right' as const }].map(h => (
             <p key={h.label} style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)', textAlign: h.align }}>{h.label}</p>
@@ -616,7 +816,18 @@ export default function AdminDashboardPage() {
           : filtered.length === 0
             ? <div style={{ padding: '3rem', textAlign: 'center' }}><p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', fontWeight: 500 }}>No users match your filters</p></div>
             : filtered.map((user, i) => (
-                <UserActivityRow key={user.id} user={user} stats={activityMap[user.id] ?? null} maxInvoices={maxInvoices} maxPayments={maxPayments} maxMatches={maxMatches} rank={i + 1} onToggle={u => setConfirmUser(u)} toggling={toggling === user.id} />
+                <UserActivityRow
+                  key={user.id}
+                  user={user}
+                  stats={activityMap[user.id] ?? null}
+                  maxInvoices={maxInvoices}
+                  maxPayments={maxPayments}
+                  maxMatches={maxMatches}
+                  rank={i + 1}
+                  onToggle={u => setConfirmUser(u)}
+                  toggling={toggling === user.id}
+                  onClickUser={setSelectedUser}
+                />
               ))
         }
 
@@ -633,12 +844,27 @@ export default function AdminDashboardPage() {
         )}
       </div>
 
+      {/* User Detail Modal — opens when a row is clicked */}
+      {selectedUser && (
+        <UserDetailModal
+          user={selectedUser}
+          stats={activityMap[selectedUser.id] ?? null}
+          allStats={activityMap}
+          rank={selectedRank}
+          onClose={() => setSelectedUser(null)}
+          onToggle={handleToggleFromModal}
+          toggling={toggling === selectedUser.id}
+        />
+      )}
+
+      {/* Confirm toggle dialog */}
       {confirmUser && <ConfirmDialog user={confirmUser} onConfirm={handleToggleConfirm} onCancel={() => setConfirmUser(null)} loading={toggling === confirmUser.id} />}
 
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
         @keyframes shimmer { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes popIn   { from { opacity: 0; transform: translate(-50%,-48%) scale(0.95); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
       `}</style>
     </div>
   );
