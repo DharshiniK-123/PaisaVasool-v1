@@ -116,7 +116,6 @@ class CandidateFetcher:
         deep_candidates: list[InvoiceData] = []
 
         if invoice_nos:
-            # ── Normal path: filter by invoice number then split by currency ──
             for inv in open_invoices:
                 inv_num    = _normalize(str(inv.invoice_number or ""))
                 number_hit = any(
@@ -130,7 +129,6 @@ class CandidateFetcher:
                 else:
                     fx_mismatch.append(inv)
         else:
-            # ── Deep match path: no invoice number → all open invoices for customer ──
             for inv in open_invoices:
                 if payment.currency == inv.currency:
                     deep_candidates.append(inv)

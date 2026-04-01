@@ -167,13 +167,13 @@ async def reject_match(
     """
     suggested = await _get_suggested_record(match_id, payment_id, db)
 
-    suggested.match_status = MatchStatus.FAILED                     # type: ignore[assignment]
-    suggested.match_reason = (                                      # type: ignore[assignment]
+    suggested.match_status = MatchStatus.FAILED                     
+    suggested.match_reason = (                                      
         f"Deep match suggestion rejected. "
         f"Original suggested invoice ID: {suggested.invoice_id}. "
         "Payment requires manual assignment."
     )
-    suggested.invoice_id = None                                     # type: ignore[assignment]
+    suggested.invoice_id = None                                    
 
     await db.flush()
     await db.commit()

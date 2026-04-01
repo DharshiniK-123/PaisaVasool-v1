@@ -9,14 +9,13 @@ from datetime import date, datetime
 import pandas as pd
 from fastapi import HTTPException, UploadFile
 from rq import Queue
-from sqlalchemy import delete as sa_delete
 from sqlalchemy import insert as sa_insert
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
+from src.core.services.matching.matching_service import _rematch_payments_for_invoice
 from src.control.extraction.Llm_extractor import run_extraction
 from src.core.enums import DocumentStatus, DocumentType, MatchStatus
-from src.core.services.extraction_service import extract_text
+from src.core.services.extraction_service import parse_text
 from src.core.services.matching import run_matching_for_payment
 from src.core.services.storage_service import save_file
 from src.core.tasks.document_task import process_document_task, process_document_task_sync
@@ -30,7 +29,6 @@ from src.data.repositories.generic_repository import (
     get_instance_by_any,
     update_instance_by_id,
 )
-from src.utils.normalize import _normalize
 from src.utils.worker_trigger import trigger_worker
 
 logger = logging.getLogger(__name__)
@@ -84,7 +82,7 @@ async def upload_document_and_enqueue(
 
     storage_path, file_type, file_url, file_hash = await save_file(file, document_type)
 
-    stmt = (
+    document_insert_stmt = (
         sa_insert(Document)
         .values(
             user_id=user_id,
@@ -97,7 +95,7 @@ async def upload_document_and_enqueue(
         .returning(Document.id)
     )
 
-    result = await db.execute(stmt)
+    result = await db.execute(document_insert_stmt)
     await db.commit()
     document_id = result.scalar_one()
 
@@ -113,8 +111,6 @@ async def upload_document_and_enqueue(
     try:
         if redis_connection is not None:
             q = Queue(connection=redis_connection)
-            print(q)
-            print("before calling process_document_task_sync")
             await asyncio.to_thread(
                 q.enqueue,
                 process_document_task_sync,
@@ -148,7 +144,7 @@ async def extract_document_data(
             await update_instance_by_id(document_id, Document, db, status=DocumentStatus.PROCESSING)
 
             try:
-                extracted = await extract_text(storage_path, file_type, file_url)
+                extracted = await parse_text(storage_path, file_type, file_url)
             except HTTPException:
                 await update_instance_by_id(document_id, Document, db, status=DocumentStatus.FAILED)
                 raise
@@ -228,12 +224,12 @@ async def save_document_records(
 
             model = InvoiceData if document_type == DocumentType.INVOICE else PaymentDetail
 
-            stmt = (
+            document_save_stmt = (
                 sa_insert(model)
                 .values(document_id=document_id, customer_id=customer_id, **data)
                 .returning(model.id)
             )
-            result = await db.execute(stmt)
+            result = await db.execute(document_save_stmt)
             await db.commit()
             inserted_id = result.scalar_one()
 
@@ -272,65 +268,6 @@ async def save_document_records(
         if should_close and engine:
             await engine.dispose()
 
-
-async def _rematch_payments_for_invoice(
-    invoice_number: str,
-    customer_id: int,
-    db: AsyncSession,
-) -> None:
-    """
-    Called after a new invoice is saved.
-    Finds every payment for the same customer whose invoice_no
-    matches this invoice number and that has NO successful match record yet,
-    then re-runs the matching pipeline for each such payment.
-
-    This handles the case: payment uploaded first → invoice uploaded later.
-    """
-    from src.utils.extract_multiple_invoice_nos import _extract_multiple_invoice_nos
-
-    inv_norm = _normalize(invoice_number)
-
-    result = await db.execute(
-        select(PaymentDetail).where(
-            PaymentDetail.customer_id == customer_id,
-            PaymentDetail.is_deleted.is_(False),
-        )
-    )
-    payments = result.scalars().all()
-
-    for payment in payments:
-        payment_invoice_nos = _extract_multiple_invoice_nos((payment.invoice_no or "").strip())
-        number_hit = any(
-            n == inv_norm or inv_norm in n or n in inv_norm for n in payment_invoice_nos
-        )
-        if not number_hit:
-            continue
-
-        existing = await db.execute(
-            select(MatchingPaymentInvoice).where(
-                MatchingPaymentInvoice.payment_detail_id == payment.id,
-                MatchingPaymentInvoice.match_status.in_([
-                    MatchStatus.FULL,
-                    MatchStatus.PARTIAL,
-                    MatchStatus.OVERPAYMENT,
-                ]),
-            )
-        )
-        if existing.scalars().first() is not None:
-            continue
-        await db.execute(
-            sa_delete(MatchingPaymentInvoice).where(
-                MatchingPaymentInvoice.payment_detail_id == payment.id,
-                MatchingPaymentInvoice.match_status == MatchStatus.FAILED,
-            )
-        )
-        await db.flush()
-
-        logger.info(
-            "rematch_payment",
-            extra={"payment_id": payment.id, "invoice_number": invoice_number},
-        )
-        await run_matching_for_payment(int(payment.id), db)
 
 
 async def _extract_single(raw_text: str, document_type: str) -> list[dict]:

@@ -30,11 +30,10 @@ async def upload_document(
 ):
     """Upload document(Invoice/Payment) to the GCS bucket and
     parse the text and extract the structured output"""
+    
     import uuid
 
     try:
-        
-
         job_id = str(uuid.uuid4())
         result = await upload_document_and_enqueue(
             file=file,

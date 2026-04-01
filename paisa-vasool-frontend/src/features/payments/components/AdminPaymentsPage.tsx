@@ -203,7 +203,7 @@ export default function AdminPaymentsPage() {
       {/* Table */}
       <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr', gap: '1rem', padding: '0.6rem 1.25rem', background: 'var(--color-surface-2)', borderBottom: '1px solid var(--color-border)' }}>
-          {['Uploaded By', 'Payer', 'Invoice No.', 'Amount', 'Paid Date', 'Match Status'].map(h => (
+          {['Uploaded By', 'Payer', 'Invoice No.', 'Amount', 'Paid Date'].map(h => (
             <p key={h} style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-muted)' }}>{h}</p>
           ))}
         </div>
@@ -255,9 +255,6 @@ export default function AdminPaymentsPage() {
                 <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>
                   {fmtDate(pay.payment_date)}
                 </span>
-
-                {/* Match status */}
-                <MatchBadge status={pay.match_status} />
               </div>
             ))
         }

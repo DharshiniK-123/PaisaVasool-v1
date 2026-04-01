@@ -33,7 +33,6 @@ async def safe_redis_setex(key: str, ttl: int, value: str, redis_client=None):
 
         await redis_client.setex(key, ttl, value)
     except Exception as e:
-        print(f"Redis error for key {key}: {str(e)}")
         raise
 
 

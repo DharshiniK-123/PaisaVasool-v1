@@ -6,6 +6,8 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import delete as sa_delete
+from src.utils.normalize import _normalize
 from src.config.matching_config import MATCHING_CONFIG
 from src.core.enums import MatchStatus
 from src.data.models.postgres.invoice_data import InvoiceData
@@ -28,6 +30,9 @@ from .db_writer import (
 )
 from .pipeline import DEEP_MATCH_PIPELINE, run_scoring_pipeline
 from .resolver import build_status_sentence, resolve_match
+from src.data.repositories import matching_repository as repo
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +248,67 @@ async def _run_deep_match(
     return records
 
 
+async def _rematch_payments_for_invoice(
+    invoice_number: str,
+    customer_id: int,
+    db: AsyncSession,
+) -> None:
+    """
+    Called after a new invoice is saved.
+    Finds every payment for the same customer whose invoice_no
+    matches this invoice number and that has NO successful match record yet,
+    then re-runs the matching pipeline for each such payment.
+
+    This handles the case: payment uploaded first → invoice uploaded later.
+    """
+    from src.utils.extract_multiple_invoice_nos import _extract_multiple_invoice_nos
+
+    inv_norm = _normalize(invoice_number)
+
+    result = await db.execute(
+        select(PaymentDetail).where(
+            PaymentDetail.customer_id == customer_id,
+            PaymentDetail.is_deleted.is_(False),
+        )
+    )
+    payments = result.scalars().all()
+
+    for payment in payments:
+        payment_invoice_nos = _extract_multiple_invoice_nos((payment.invoice_no or "").strip())
+        number_hit = any(
+            n == inv_norm or inv_norm in n or n in inv_norm for n in payment_invoice_nos
+        )
+        if not number_hit:
+            continue
+
+        existing = await db.execute(
+            select(MatchingPaymentInvoice).where(
+                MatchingPaymentInvoice.payment_detail_id == payment.id,
+                MatchingPaymentInvoice.match_status.in_([
+                    MatchStatus.FULL,
+                    MatchStatus.PARTIAL,
+                    MatchStatus.OVERPAYMENT,
+                ]),
+            )
+        )
+        if existing.scalars().first() is not None:
+            continue
+        await db.execute(
+            sa_delete(MatchingPaymentInvoice).where(
+                MatchingPaymentInvoice.payment_detail_id == payment.id,
+                MatchingPaymentInvoice.match_status == MatchStatus.FAILED,
+            )
+        )
+        await db.flush()
+
+        logger.info(
+            "rematch_payment",
+            extra={"payment_id": payment.id, "invoice_number": invoice_number},
+        )
+        await run_matching_for_payment(int(payment.id), db)
+
+
+
 async def run_matching_for_payment(
     payment_id: int,
     db:         AsyncSession,
@@ -290,7 +356,6 @@ async def run_matching_for_payment(
         },
     )
 
-    # 3. Validate (only hard-fails on zero/negative amount now)
     validation_error = _validate_payment(payment)
     if validation_error:
         rec: MatchingPaymentInvoice | None = await save_failed_match(
@@ -305,7 +370,7 @@ async def run_matching_for_payment(
 
     invoice_nos = _extract_multiple_invoice_nos((payment.invoice_no or "").strip())
 
-    # 4. Fetch candidates
+    # 3. Fetch candidates
     candidates = await CandidateFetcher(db).fetch(payment, invoice_nos)
 
     if not candidates.has_open():
@@ -314,7 +379,7 @@ async def run_matching_for_payment(
         await db.commit()
         return [rec] if rec else []
 
-    # 5. Same-currency matches (invoice_no path)
+    # 4. Same-currency matches (invoice_no path)
     for invoice in candidates.same_currency:
         if remaining_pay <= ZERO:
             break
@@ -329,7 +394,7 @@ async def run_matching_for_payment(
         if rec is not None:
             records.append(rec)
 
-    # 6. FX-converted matches (invoice_no path)
+    # 5. FX-converted matches (invoice_no path)
     for invoice in candidates.fx_mismatch:
         if remaining_pay <= ZERO:
             break
@@ -366,7 +431,7 @@ async def run_matching_for_payment(
         if rec is not None:
             records.append(rec)
 
-    # 7. Deep match (no invoice_no path)
+    # 6. Deep match (no invoice_no path)
     if not records and candidates.deep_candidates:
         logger.info(
             "deep_match_attempt",
@@ -399,7 +464,7 @@ async def run_matching_for_payment(
             await db.commit()
             return records
 
-    # 8. Unmatched remainder (normal path)
+    # 7. Unmatched remainder (normal path)
     last_status = next(
         (r.match_status for r in reversed(records)
          if r.match_status in CONCLUSIVE_STATUSES),
@@ -425,7 +490,7 @@ async def run_matching_for_payment(
         rec = await save_failed_match(payment_id, reason, db)
         records.append(rec)
 
-    # 9. Update invoice statuses + commit
+    # 8. Update invoice statuses + commit
     matched_invoice_ids = {
         r.invoice_id for r in records
         if r.invoice_id and r.match_status in CONCLUSIVE_STATUSES
@@ -445,3 +510,134 @@ async def run_matching_for_payment(
     )
 
     return records
+
+
+
+async def get_matches_by_payment(payment_id: int, db: AsyncSession) -> list[MatchingPaymentInvoice]:
+    return await repo.get_matches_by_payment_id(payment_id, db)
+
+
+async def get_matches_by_invoice(invoice_id: int, db: AsyncSession) -> list[MatchingPaymentInvoice]:
+    return await repo.get_matches_by_invoice_id(invoice_id, db)
+
+
+async def get_unmatched_payments(db: AsyncSession) -> list[dict]:
+    rows = await repo.get_unmatched_payments(db)
+    return [dict(row) for row in rows]
+
+
+async def get_unmatched_invoices(db: AsyncSession) -> list[dict]:
+    rows = await repo.get_unmatched_invoices(db)
+    return [
+        {
+            **{k: v for k, v in row.InvoiceData.__dict__.items() if not k.startswith("_")},
+            "customer_name": row.customer_name,
+            "customer_email": row.customer_email,
+        }
+        for row in rows
+    ]
+
+
+async def get_invoice_detail(invoice_id: int, db: AsyncSession) -> dict | None:
+    row = await repo.get_invoice_detail(invoice_id, db)
+    if not row:
+        return None
+    data = {k: v for k, v in row.InvoiceData.__dict__.items() if not k.startswith("_")}
+    data["customer_name"] = row.customer_name
+    data["customer_email"] = row.customer_email
+    return data
+
+
+async def get_payment_detail(payment_id: int, db: AsyncSession) -> dict | None:
+    row = await repo.get_payment_detail(payment_id, db)
+    if not row:
+        return None
+    data = {k: v for k, v in row.PaymentDetail.__dict__.items() if not k.startswith("_")}
+    data["payer_name"] = row.payer_name
+    data["payer_email"] = row.payer_email
+    data["amount"] = data.pop("payment_amount", None)
+    data["payment_date"] = data.pop("paid_date", None)
+    data["reference_number"] = data.pop("payment_reference", None)
+    return data
+
+
+async def get_recent_matches(limit: int, db: AsyncSession) -> list[MatchingPaymentInvoice]:
+    return await repo.get_recent_matches(limit, db)
+
+
+async def get_discrepancies(db: AsyncSession) -> list[dict]:
+    rows = await repo.get_discrepancies(db)
+
+    invoice_ids_with_overpayment = {
+        row["invoice_id"]
+        for row in rows
+        if row["match_status"] == "OVERPAYMENT" and row["invoice_id"] is not None
+    }
+    return [
+        row
+        for row in rows
+        if not (
+            row["match_status"] == "PARTIAL" and row["invoice_id"] in invoice_ids_with_overpayment
+        )
+    ]
+
+
+async def get_dashboard_summary(db: AsyncSession) -> dict:
+    all_matches = await repo.get_all_matches(db)
+    if not all_matches:
+        return {
+            "FULL": [], "PARTIAL": [], "OVERPAYMENT": [],
+            "DUPLICATE": [], "FAILED": [],
+            "SUGGESTED": [],        
+            "MANUALLY_MATCHED": [], 
+        }
+    return {
+        status: [m for m in all_matches if m.match_status == status]
+        for status in [
+            "FULL", "PARTIAL", "OVERPAYMENT",
+            "DUPLICATE", "FAILED",
+            "SUGGESTED",
+            "MANUALLY_MATCHED",
+        ]
+    }
+
+
+async def get_pending_review(db: AsyncSession) -> list[dict]:
+    """
+    Returns all SUGGESTED match records enriched with invoice and payment context
+    so the frontend can render the review UI without extra calls.
+    """
+    result = await db.execute(
+        select(
+            MatchingPaymentInvoice,
+            InvoiceData.invoice_number,
+            InvoiceData.total_amount.label("invoice_amount"),
+            PaymentDetail.payment_amount,
+            PaymentDetail.currency,
+            PaymentDetail.paid_date,
+        )
+        .join(InvoiceData,  InvoiceData.id  == MatchingPaymentInvoice.invoice_id)
+        .join(PaymentDetail, PaymentDetail.id == MatchingPaymentInvoice.payment_detail_id)
+        .where(MatchingPaymentInvoice.match_status == "SUGGESTED")
+        .order_by(MatchingPaymentInvoice.created_at.desc())
+    )
+
+    rows = result.all()
+    return [
+        {
+            "match_id":       row.MatchingPaymentInvoice.id,
+            "payment_id":     row.MatchingPaymentInvoice.payment_detail_id,
+            "invoice_id":     row.MatchingPaymentInvoice.invoice_id,
+            "invoice_number": row.invoice_number,
+            "invoice_amount": row.invoice_amount,
+            "payment_amount": row.payment_amount,
+            "currency":       row.currency,
+            "paid_date":      row.paid_date,
+            "matched_amount": row.MatchingPaymentInvoice.matched_amount,
+            "amount_pending": row.MatchingPaymentInvoice.amount_pending,
+            "match_score":    row.MatchingPaymentInvoice.match_score,
+            "match_reason":   row.MatchingPaymentInvoice.match_reason,
+            "created_at":     row.MatchingPaymentInvoice.created_at,
+        }
+        for row in rows
+    ]

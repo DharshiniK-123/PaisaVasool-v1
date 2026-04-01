@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.rest.dependencies import get_current_user, get_db
-from src.core.services import matching_service as service
+from src.core.services.matching import matching_service as service
 from src.core.services.matching.manual_review_service import (
     approve_match,
     reject_match,

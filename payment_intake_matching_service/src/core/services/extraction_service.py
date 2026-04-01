@@ -111,7 +111,7 @@ def _extract_from_excel_sync(storage_path: str) -> pd.DataFrame:
         raise HTTPException(status_code=422, detail="Excel extraction failed") from e
 
 
-async def extract_text(storage_path: str, file_type: str, file_url: str | None = None):
+async def parse_text(storage_path: str, file_type: str, file_url: str | None = None):
     """
     Download the file from GCS then extract its content.
     CPU/IO-bound sync extractors are offloaded via asyncio.to_thread()
